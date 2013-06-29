@@ -2,3 +2,6 @@ Duffy.WarwickAvenue.mp3 is the original full mix
 duffy_-_warwick_avenue_acapella.mp3 is the vocal track alone
 Duffy.aligntoacapella.mp3 is the full mix trimmed and resampled to get the best alignment to the acapella track
   (by skewview duffy_-_warwick_avenue_acapella.wav Duffy.WarwickAvenue.wav -samplerate 1000 -estinitialdelay 1 and using the sox command)
+
+mc-paul-mix.mp3 is the original full mix, ripped from a CD
+mc-paul-instr.mp3 is the instrumental, ripped from a Vinyl with different mastering and song structure
