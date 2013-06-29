@@ -1,18 +1,20 @@
-function [noise, targ, filter, SNR, delay, filters] = find_in_mix(dmix, ...
-                                                  dclean, srmix, Tfilt)
-% [noise, targ, filter, SNR, delay] = find_in_mix(dmix, dclean, srmix)
+function [noise, targ, filter, SNR, delay, filters] = find_in_mix(dmix, dclean, srmix, Tfilt, Tpre)
+% [noise, targ, filter, SNR, delay] = find_in_mix(dmix, dclean, srmix, Tfilt, Tpre)
 %     dmix consists of a filtered version of dclean with added
 %     noise.  Use best linear fit to return the noise without the
 %     clean signal, the filtered (and slightly time-warped) version of clean
 %     that best fits it, and the filter that can be applied to the clean
 %     signal to make it match what was in the mix, and the overall
 %     SNR this implies for the mixture.
+%     Tfilt is the duration of the FIR filter to estimate (0.040 s), 
+%     and Tpre is how much "pre-echo" to allow before the timing
+%     peak (0.005 s).
 % 2011-02-10 Dan Ellis dpwe@ee.columbia.edu
 
 % find best skew (up to half a second)
 skewmaxsec = 15.0;
 %skewmaxsec = 0.5;
-mixdelay = find_skew(dclean, dmix, round(skewmaxsec*srmix));
+mixdelay = find_skew(dmix, dclean, round(skewmaxsec*srmix));
 
 delay = mixdelay/srmix;
 disp(['Delay = ',num2str(delay),' s']);
@@ -23,8 +25,11 @@ if nargin < 4
 end
 
 Lfilt = round(Tfilt*srmix);
-Tpre  = 0.005; % how much to allow before peak
-%Tpre  = 0.020; % how much to allow before peak
+if nargin < 5
+  Tpre  = 0.005; % how much to allow before peak
+  %Tpre  = 0.020; % how much to allow before peak
+end
+
 Lpre  = round(Tpre*srmix);
 
 %disp(['skewmaxsec=',num2str(skewmaxsec),' Tfilt=',num2str(Tfilt)]);
