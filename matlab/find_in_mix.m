@@ -17,7 +17,7 @@ skewmaxsec = 15.0;
 mixdelay = find_skew(dmix, dclean, round(skewmaxsec*srmix));
 
 delay = mixdelay/srmix;
-disp(['Delay = ',num2str(delay),' s']);
+disp(['Delay = ',sprintf('%.6f',delay),' s']);
 
 if nargin < 4
   Tfilt = 0.040; % duration of FIR filter
