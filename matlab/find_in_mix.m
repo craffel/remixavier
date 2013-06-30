@@ -12,8 +12,8 @@ function [noise, targ, filter, SNR, delay, filters] = find_in_mix(dmix, dclean, 
 % 2011-02-10 Dan Ellis dpwe@ee.columbia.edu
 
 % find best skew (up to half a second)
-skewmaxsec = 15.0;
-%skewmaxsec = 0.5;
+%skewmaxsec = 15.0;
+skewmaxsec = 0.5;
 mixdelay = find_skew(dmix, dclean, round(skewmaxsec*srmix));
 
 delay = mixdelay/srmix;
@@ -50,10 +50,15 @@ end
 % dmax = dmax(1:dlen);
 % dclean = dclean(1:dlen);
 
-%Twin = 1.0;  % match on 2 sec blocks
-Twin = 0.5;  % match on 2 sec blocks
+%Twin = 1.0;  % match on 1 sec blocks
+Twin = 8.0;
+% longer gives better results for signals with no time warp issues
 Lwin = round(Twin*srmix);
-[targ, noise, filters, Es] = decomp_lin_win(dmix, dclean, Lfilt, Lwin);
+Thop = Twin/2;
+Lhop = round(Thop*srmix);
+
+[targ, noise, filters, Es] = decomp_lin_win(dmix, dclean, Lfilt, ...
+                                            Lwin, Lhop);
 
 %% Choose just one filter to return; the "median"
 %fnorms = sum(filters.^2);

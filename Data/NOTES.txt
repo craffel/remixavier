@@ -9,3 +9,8 @@ mc-paul-mix-align.mp3 is the resampled/trimmed version to align to the instr
 
 10-Aha_.m4a and 23-Aha_Instrumental_Version_.m4a are two tracks from Imogen Heap's album Ellipse, which includes vocal-less versions of all tracks (in the extended version)
 
+message-in-a-bottle-mix.{wav,mp3}
+message-in-a-bottle-vox.{wav,mp3}
+message-in-a-bottle-inst.{wav,mp3}
+ - mix, vocals, and accompaniment for Message in a Bottle by The Police.  These were mixed from 11 track stereo masters, and mix = vox + inst, up to the distortions resulting from mp3 compression (which are significant, even though it was compressed with lame -V0).
+

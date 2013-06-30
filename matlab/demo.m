@@ -1,4 +1,4 @@
-% demo of matlab version of remixaview
+% demo of matlab version of remixavier
 % 2013-06-28 Dan Ellis dpwe@ee.columbia,edu
 
 % Load in mix and acapella as mono files
@@ -17,7 +17,7 @@ dmr = deskew(dmr, dins);
 
 % Do the short-time coupling filter estimation
 tic; [resid, targ, filt, SNR, del, filts] = ...
-      find_in_mix(dmr,dins,sr,0.010,0.003); toc
+      find_in_mix(dmr,dins,sr,0.013,0.003); toc
 
 % Listen to the residual (vocals)
 % (play the second 20 seconds)
@@ -91,3 +91,42 @@ dinsf = [conv(f1,dins((xx+1):end,1)),conv(f2,dins((xx+1):end,2))];
 ll = min(length(dmr),length(dinsf));
 dvx = dmr(1:ll,:) - dinsf(1:ll,:);
 soundsc(dvx(ix,:),sr);
+
+
+% Message In A Bottle is an ideal case - plain subtraction of mix
+% and instrumental yeilds clean vocals.  But how do we do?
+
+sr = 44100;
+dmix = mean(wavread('../Data/message-in-a-bottle-mix.wav'),2);
+dins = mean(wavread('../Data/message-in-a-bottle-ins.wav'),2);
+
+dmr = deskew(dmix, dins);
+
+tic; [resid, targ, filt, SNR, del, filts] = ...
+      find_in_mix(dmr,dins,sr,0.013,0.003); toc
+
+soundsc(resid(ix,:), sr);
+
+% We can apply a "wiener filter" (scaling of spectrogram magnitude
+% cells) to further reduce residual artifacts.  In particular, we
+% can suppress cells where the energy in the estimated vocals is
+% significantly lower than the energy in the instrumental line
+% projected into the mix.  weinerenhace with a threshold so that
+% energy in the residual that is below -6 dB of the accompaniment
+% is suppressed
+
+reswf = weinerenhance(resid, targ, -6.0);
+soundsc(reswf(ix,:), sr);
+
+% We can measure SNR by canceling against the true vocals, which
+% are simply the difference of dmix and dins (for this perfect example)
+dvox = dmix - dins;
+soundsc(dvox(ix,:), sr);  % Yes, sounds clean
+[r2, t2, f2, S2, d2, fs2] = find_in_mix(resid,dvox,sr,0.010,0.003); 
+%Delay = 0.000000 s
+%SNR = 19.9197 dB
+[r2, t2, f2, S2, d2, fs2] = find_in_mix(reswf,dvox,sr,0.010,0.003);
+%Delay = 0.000000 s
+%SNR = 16.1096 dB
+% Weiner filtering introduces more artefact energy than it removes
+% interference.

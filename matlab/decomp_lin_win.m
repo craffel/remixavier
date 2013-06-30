@@ -1,5 +1,5 @@
-function [T,A,H,E,WFs] = decomp_lin_win(Y,X,L,W, doplot)
-% [T,A,Hs,E,WFs] = decomp_lin_win(Y,X,L,W)
+function [T,A,H,E,WFs] = decomp_lin_win(Y,X,L,W,hop, doplot)
+% [T,A,Hs,E,WFs] = decomp_lin_win(Y,X,L,W,H, doplot)
 %     Decompose Y into a component T that is a linear filter
 %     applied to X, and a residual A = Y - T.  The estimated linear 
 %     filter is L points long (and causal).  Do this repeatedly for 
@@ -7,16 +7,16 @@ function [T,A,H,E,WFs] = decomp_lin_win(Y,X,L,W, doplot)
 %     overlap-add the results.  Hs returns a matrix of filter estimate
 % 2010-12-01 Dan Ellis dpwe@ee.columbia.edu for RATS SNR
 
-if nargin < 5; doplot = 0; end
-
-lenY = length(Y);
-
 % Force W to be even
 W = 2*round(W/2);
 
 overlapfct = 2;
 
-hop = round(W/overlapfct);
+if nargin < 5; hop = round(W/overlapfct); end
+if nargin < 6; doplot = 0; end
+
+lenY = length(Y);
+
 
 % how many windows?
 numwin = 1+ ceil((lenY-W)/hop);
