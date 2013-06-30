@@ -48,10 +48,10 @@ caxis([-2 2])
 dmr = deskew(dmix, dcap);
 dmr = deskew(dmr, dcap);
 
-clear resid
+clear resid targ
 
 for i = 1:size(dmr,2)
-  tic; [resid(:,i), targ, filt, SNR, del, filts] = ...
+  tic; [resid(:,i), targ(:,i), filt, SNR, del, filts] = ...
                 find_in_mix(dmr(:,i),dcap(:,i),sr,0.006,0.003); toc
 end
   
@@ -66,11 +66,11 @@ soundsc(resid(ix,:), sr);
 % Deskew once just to line them up in time
 dmr = deskew(dmix, dins);
 
-clear resid filts
+clear resid targ filts
 
 % Align each channel, and store all the individual filters
 for i = 1:size(dmr,2)
-  tic; [resid(:,i), targ, filt, SNR, del, filts{i}] = ...
+  tic; [resid(:,i), targ(:,i), filt, SNR, del, filts{i}] = ...
                 find_in_mix(dmr(:,i),dins(:,i),sr,0.006,0.003); toc
 end
 
