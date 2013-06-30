@@ -5,3 +5,7 @@ Duffy.aligntoacapella.mp3 is the full mix trimmed and resampled to get the best 
 
 mc-paul-mix.mp3 is the original full mix, ripped from a CD
 mc-paul-instr.mp3 is the instrumental, ripped from a Vinyl with different mastering and song structure
+mc-paul-mix-align.mp3 is the resampled/trimmed version to align to the instr
+
+10-Aha_.m4a and 23-Aha_Instrumental_Version_.m4a are two tracks from Imogen Heap's album Ellipse, which includes vocal-less versions of all tracks (in the extended version)
+
