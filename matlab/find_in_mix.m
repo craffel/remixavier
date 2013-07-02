@@ -1,5 +1,5 @@
-function [noise, targ, filter, SNR, delay, filters] = find_in_mix(dmix, dclean, srmix, Tfilt, Tpre)
-% [noise, targ, filter, SNR, delay] = find_in_mix(dmix, dclean, srmix, Tfilt, Tpre)
+function [noise, targ, filter, SNR, delay, filters] = find_in_mix(dmix, dclean, srmix, Tfilt, Tpre, Twin, Thop)
+% [noise, targ, filter, SNR, delay] = find_in_mix(dmix, dclean, srmix, Tfilt, Tpre, Twin, Thop)
 %     dmix consists of a filtered version of dclean with added
 %     noise.  Use best linear fit to return the noise without the
 %     clean signal, the filtered (and slightly time-warped) version of clean
@@ -9,15 +9,10 @@ function [noise, targ, filter, SNR, delay, filters] = find_in_mix(dmix, dclean, 
 %     Tfilt is the duration of the FIR filter to estimate (0.040 s), 
 %     and Tpre is how much "pre-echo" to allow before the timing
 %     peak (0.005 s).
+%     Twin is the length of windows used for estimating filter
+%     (default 8 s), and Thop is the hop between successive windows
+%     (default Twin/2).
 % 2011-02-10 Dan Ellis dpwe@ee.columbia.edu
-
-% find best skew (up to half a second)
-%skewmaxsec = 15.0;
-skewmaxsec = 0.5;
-mixdelay = find_skew(dmix, dclean, round(skewmaxsec*srmix));
-
-delay = mixdelay/srmix;
-disp(['Delay = ',sprintf('%.6f',delay),' s']);
 
 if nargin < 4
   Tfilt = 0.040; % duration of FIR filter
@@ -29,6 +24,16 @@ if nargin < 5
   Tpre  = 0.005; % how much to allow before peak
   %Tpre  = 0.020; % how much to allow before peak
 end
+
+if nargin < 6; Twin = 8.0; end
+if nargin < 7; Thop = Twin/2; end
+
+% find best skew (up to half a second)
+skewmaxsec = 0.5;
+mixdelay = find_skew(dmix, dclean, round(skewmaxsec*srmix));
+
+delay = mixdelay/srmix;
+disp(['Delay = ',sprintf('%.6f',delay),' s']);
 
 Lpre  = round(Tpre*srmix);
 
@@ -51,10 +56,10 @@ end
 % dclean = dclean(1:dlen);
 
 %Twin = 1.0;  % match on 1 sec blocks
-Twin = 8.0;
+%Twin = 8.0;
 % longer gives better results for signals with no time warp issues
 Lwin = round(Twin*srmix);
-Thop = Twin/2;
+%Thop = Twin/2;
 Lhop = round(Thop*srmix);
 
 [targ, noise, filters, Es] = decomp_lin_win(dmix, dclean, Lfilt, ...

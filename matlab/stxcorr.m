@@ -3,7 +3,10 @@ function [Z,E] = stxcorr(X,Y,W,H,N,OLDWAY)
 %    X and Y are segmented into W-point stretches, hopped by H samples. 
 %    The cross-correlation of these, out to +/- N points, are returned 
 %    as columns of Z.
-%    Result is timing of Y relative to X.
+%    Result is timing of X relative to Y, so that if X is equal to
+%    some padding samples followed by Y (i.e., Y delayed) then the
+%    cross correlation has peak values beyond its midpoint (in each
+%    column of Z).
 %    E returns theoretical maximum (harmonic mean energy) for each
 %    col of Z.
 % 2004-04-28 dpwe@ee.columbia.edu

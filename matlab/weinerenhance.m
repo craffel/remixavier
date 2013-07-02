@@ -24,8 +24,8 @@ if size(target,2) > 1
 else
 
   % default, mono case
-  DTARG = specgram(target, fftlen);
-  DCOMP = specgram(accomp, fftlen);
+  DTARG = stft(target, fftlen, fftlen, fftlen/4);
+  DCOMP = stft(accomp, fftlen, fftlen, fftlen/4);
   frames = min(size(DTARG,2), size(DCOMP,2));
   DBRAT = 20*log10(abs(DTARG(:,1:frames))) - 20*log10(abs(DCOMP(:,1:frames)));
 
@@ -35,6 +35,7 @@ else
   % Generate a mask by putting the dB difference through a sigmoid
   % with a midpoint at -6 dB, and a transition width ~ 3 dB
   M = sigmoid(DBRAT,thresh,transit);
-  y = ispecgram(DTARG .* M);
-
+  y = istft(DTARG(:,1:frames) .* M, fftlen, fftlen, fftlen/4);
+  % istft returns as a row
+  y = y';
 end
