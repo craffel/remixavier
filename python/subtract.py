@@ -19,7 +19,7 @@ import librosa
 
 def best_filter_coefficients( M, R ):
     '''
-    Get the best vector H such that |M - HoR| is minimized
+    Get the best vector H such that |M - HoR| is minimized, where M, H, R are complex
     
     Input:
         M - matrix, size nbins x nframes
@@ -27,12 +27,12 @@ def best_filter_coefficients( M, R ):
     Output:
         H - vector, size nbins x 1
     '''
-    H = np.zeros( (M.shape[0], 1) )
+    H = np.zeros( (M.shape[0], 2) )
     # Iterate through rows, columns
     for i, (M_i, R_i) in enumerate( zip( M, R ) ):
-        l1_sum = lambda H_i: np.sum( np.abs( M_i - H_i*R_i ) )
-        H[i] = scipy.optimize.minimize_scalar( l1_sum, bounds=[0, 1e100], method='bounded' ).x
-    return H
+        l1_sum = lambda H_i: np.sum( np.abs( M_i.real + M_i.imag*1j - (H_i[0]*R_i.real + H_i[0]*R_i.imag*1j + H_i[1]*R_i.real*1j - H_i[1]*R_i.imag) ) )
+        H[i] = scipy.optimize.minimize( l1_sum, H[i], bounds=[(0, 1e100), (0, 1e100)], method='L-BFGS-B' ).x
+    return (H[:, 0] + H[:, 1]*1j).reshape( -1, 1 )
 
 # <codecell>
 
@@ -73,7 +73,7 @@ def separate( mix, source, fs ):
     source_spec = librosa.stft( source[:60*fs], n_fft=N, hop_length=R )
     
     # Compute the best filter
-    H = best_filter_coefficients( np.abs( mix_spec ), np.abs( source_spec ) )
+    H = best_filter_complex( mix_spec, source_spec )
     # Apply it in the frequency domain (ignoring aliasing!  Yikes)
     source_spec = librosa.stft( source, n_fft=N, hop_length=R )
     source_spec_filtered = H*source_spec
@@ -119,13 +119,9 @@ def pad( a, b ):
 # <codecell>
 
 if __name__ == '__main__':
-    # demo of matlab version of remixaview
     # 2013-06-28 Dan Ellis dpwe@ee.columbia,edu + Colin Raffel craffel@gmail.com
     mix, fs = librosa.load('../Data/iggy-work-mix.mp3', sr=None)
     source, fs = librosa.load('../Data/iggy-work-instr.mp3', sr=fs)
     sep = separate( mix, source, fs )
     librosa.output.write_wav( '../Data/iggy-work-sep.wav', sep, fs )
-
-# <codecell>
-
 
