@@ -47,6 +47,7 @@ def separate( mix, source, fs ):
         fs - sampling rate
     Output:
         remainder - the remaining signal after removing source from mix
+        source_filtered - the source, filtered by the channel estimation
     '''
     
     # Maximum offset (in samples) to search over
@@ -90,7 +91,7 @@ def separate( mix, source, fs ):
     # Make the same size by adding zeros
     mix, source_filtered = pad( mix, source_filtered )
     # Return remainder
-    return mix - source_filtered
+    return mix - source_filtered, source_filtered
     
 
 # <codecell>
@@ -120,8 +121,10 @@ def pad( a, b ):
 
 if __name__ == '__main__':
     # 2013-06-28 Dan Ellis dpwe@ee.columbia,edu + Colin Raffel craffel@gmail.com
-    mix, fs = librosa.load('../Data/iggy-work-mix.mp3', sr=None)
-    source, fs = librosa.load('../Data/iggy-work-instr.mp3', sr=fs)
-    sep = separate( mix, source, fs )
-    librosa.output.write_wav( '../Data/iggy-work-sep.wav', sep, fs )
+    mix, fs = librosa.load('../Data/mc-paul-mix-align.wav', sr=None)
+    source, fs = librosa.load('../Data/mc-paul-instr.mp3', sr=fs)
+    sep, source_filtered = separate( mix, source, fs )
+    librosa.output.write_wav( '../Data/mc-paul-sep.wav', sep, fs )
+    librosa.output.write_wav( '../Data/mc-paul-source-filtered.wav', source_filtered, fs )
+    
 
