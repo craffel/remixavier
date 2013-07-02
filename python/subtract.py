@@ -36,21 +36,6 @@ def best_filter_coefficients( M, R ):
 
 # <codecell>
 
-mix, fs = librosa.load('../Data/azealia-mix.mp3', sr=None)
-source, fs = librosa.load('../Data/azealia-instr.mp3', sr=fs)
-
-# <codecell>
-
-mix, fs = librosa.load('../Data/Duffy.aligntoacapella.mp3', sr=None)
-source, fs = librosa.load('../Data/duffy_-_warwick_avenue_acapella.mp3', sr=fs)
-
-# <codecell>
-
-sep = separate( mix, source, fs )
-librosa.output.write_wav( 'filt2.wav', sep, fs )
-
-# <codecell>
-
 def separate( mix, source, fs ):
     '''
     Given a mixture signal and a source signal _which are NOT skewed_, 
@@ -65,7 +50,7 @@ def separate( mix, source, fs ):
     '''
     
     # Maximum offset (in samples) to search over
-    offset_max = .5*fs
+    offset_max = 2*fs
     # Get correlation in both directions
     mix_vs_clean = np.correlate( mix[:offset_max], source[:offset_max*2] )
     clean_vs_mix = np.correlate( source[:offset_max], mix[:offset_max*2] )
@@ -78,7 +63,7 @@ def separate( mix, source, fs ):
     else:
         offset = offset_max - np.argmax( clean_vs_mix )
         source = np.append( np.zeros( offset ), source )
-        
+    
     # Window and hop sizes
     N = 1024
     R = N/4
@@ -92,7 +77,7 @@ def separate( mix, source, fs ):
     # Apply it in the frequency domain (ignoring aliasing!  Yikes)
     source_spec = librosa.stft( source, n_fft=N, hop_length=R )
     source_spec_filtered = H*source_spec
-
+    
     '''# Compute a highpass filter to get rid of the low end
     low_h = scipy.signal.firwin(N + 1, 200.0/fs, pass_zero=False)[:-1]
     low_H = np.fft.rfft( low_h ).reshape( -1, 1 )
@@ -107,17 +92,6 @@ def separate( mix, source, fs ):
     # Return remainder
     return mix - source_filtered
     
-
-# <codecell>
-
-N = 1024
-low_h = scipy.signal.firwin(N + 1, 200.0/fs, pass_zero=False)[:-1]
-low_H = np.fft.rfft( low_h ).reshape( -1, 1 )
-plt.plot( np.abs( low_H.flatten() ) )
-
-# <codecell>
-
-np.arange( 4 ).reshape( -1, 1 )
 
 # <codecell>
 
@@ -147,22 +121,10 @@ def pad( a, b ):
 if __name__ == '__main__':
     # demo of matlab version of remixaview
     # 2013-06-28 Dan Ellis dpwe@ee.columbia,edu + Colin Raffel craffel@gmail.com
-    import sys
-    if len(sys.argv) < 4:
-        print "Usage: %s mix.wav|mix.mp3 source.wav|source.mp3 out.wav" % sys.argv[0]
-        sys.exit(-1)
-
-    
-    # Load in mix and acapella as mono files
-    import librosa
-    dmix, sr = librosa.load(sys.argv[1], sr=None)
-    dcap, sr = mp3read(sys.argv[2], sr=sr)
-    
-    # Do the short-time coupling filter estimation
-    noise, targ, filt, SNR, delay, filts = find_in_mix(dmix, dcap, sr)
-    
-    # Listen to the residual (accompaniment)
-    librosa.output.write_wav( sys.argv[3], noise, sr )
+    mix, fs = librosa.load('../Data/iggy-work-mix.mp3', sr=None)
+    source, fs = librosa.load('../Data/iggy-work-instr.mp3', sr=fs)
+    sep = separate( mix, source, fs )
+    librosa.output.write_wav( '../Data/iggy-work-sep.wav', sep, fs )
 
 # <codecell>
 
