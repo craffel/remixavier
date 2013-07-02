@@ -14,7 +14,7 @@
 % under ideal conditions we could recover the vocal line V as M -
 % I.  However, there are very often timing offsets and small sampling
 % rate differences (clock drift) that will defeat the simple
-% approach.  We estimate these timimng differences with short-time 
+% approach.  We estimate these timing differences with short-time 
 % cross correlation (in <deskew.m>), and trim and resample to
 % correct it to within a few parts per million (milliseconds of
 % drift over the duration of a typical track).
@@ -204,11 +204,21 @@ ff = [0:fftlen/2]*sr/fftlen;
 tt = [1:size(M,2)]*fftlen/4/sr;
 imagesc(tt,ff,M(:,:,1)); axis xy  % the spectrogram mask
 xlabel('Time'); ylabel('Frequency');
-axis([0 10 0 4000])
+axis([20 40 0 4000])
 soundsc(mixwf(ix,:), sr);
 % but it sounds better based on the enhanced version
 [reswf,M] = weinerenhance(resid, targ, 12.0, 2.0);
 soundsc(reswf(ix,:), sr);
+
+%% Command line version
+%
+% remixavier.m wraps these processes into a single function,
+% suitable for turning into a compiled Matlab command-line binary:
+
+remixavier -mix ../Data/mc-paul-mix.mp3 -ref ../Data/mc-paul-instr.mp3 -out tmp.wav -dur 60 -weiner_thresh 3.0 -gain 0.9
+% use -help to see all the options
+remixavier -help
+
 
 %% Still to do
 %
@@ -228,3 +238,54 @@ soundsc(reswf(ix,:), sr);
 % phase model to the phase responses of each individual coupling
 % IR, then average their zero-phase versions, then reintroduce the
 % individual phases (delays) to redistribute over each segment.
+
+%% See also
+%
+% This project was developed in collaboration with Colin Raffel as part of 
+% <http://labrosa.ee.columbia.edu/hamr2013/ HAMR 2013>.
+% There is another page describing the project in the 
+% <http://labrosa.ee.columbia.edu/hamr2013/proceedings/doku.php/remixavier HAMR Proceedings - Remixavier>
+% The code and data are on github:
+% <https://github.com/craffel/remixavier>
+
+%% Installation
+% 
+% This package has been compiled for several targets 
+% using the Matlab compiler.  You will also need 
+% to download and install the Matlab Compiler Runtime (MCR) Installer. 
+% Please see the table below:
+%
+% <html>
+% <table border=1>
+% <tr><th>Architecture</th><th>Compiled package</th><th>MCR Installer</th></tr>
+% <tr><td>64 bit Linux</td>
+% <td><a href="remixavier_GLNXA64.zip">remixavier_GLNXA64.zip</a></td>
+% <td><a href="http://www.ee.columbia.edu/~dpwe/tmp/MCRInstaller_glnxa64.bin">Linux 64 bit MCR Installer</a></td></tr>
+% <tr><td>64 bit MacOS</td>
+% <td><a href="remixavier_MACI64.zip">remixavier_MACI64.zip</a></td>
+% <td><a href="http://www.ee.columbia.edu/~dpwe/tmp/MCRInstaller.dmg">MACI64 MCR Installer</a></td></tr>
+% </table></html>
+% 
+% The original Matlab code used to build this compiled target is 
+% available at <http://www.ee.columbia.edu/~dpwe/resources/matlab/remixavier>
+%
+% All sources are in the package <remixavier-v@VER@.zip>.
+%
+% Feel free to contact me with any problems.
+
+%% Notes
+%
+% The included function <audioread.m audioread> is able to read a
+% wide range of sound file types, but relies on a number of other
+% packages and/or support functions being installed.  Most obscure
+% of these is  ReadSound, a MEX wrapper I wrote for the dpwelib
+% sound file interface.  See the 
+% <http://labrosa.ee.columbia.edu/matlab/audioread/ audioread homepage>
+% for more details.
+
+%% Changelog
+
+% v0.01  2013-07-01 Initial release
+
+% Last updated: $Date: 2011/12/09 20:30:34 $
+% Dan Ellis <dpwe@ee.columbia.edu>

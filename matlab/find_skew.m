@@ -12,7 +12,7 @@ function [n,xc,ll] = find_skew(test, ref, range, resolution, dosquare)
 %    to try for <n>.
 %    <resolution> is the required accuracy in samples.  Waveforms
 %    will be downsampled to do no better than this (0 = no
-%    downsampling).
+%    downsampling, default = 16).
 %    <dosquare> set to 1 causes cross-correlation to be performed
 %    on squared signals (gives better results for signals with
 %    small amounts of clock drift).
@@ -21,13 +21,13 @@ function [n,xc,ll] = find_skew(test, ref, range, resolution, dosquare)
 % 2011-02-11 Dan Ellis dpwe@ee.columbia.edu
 
 if nargin < 3;  range = []; end
-if nargin < 4;  resolution = 0; end
+if nargin < 4;  resolution = 16; end
 if nargin < 5;  dosquare = 0; end
 
 if resolution > 1
   test = resample(test, 1, resolution);
   ref = resample(ref, 1, resolution);
-  range = range / resolution;
+  range = round(range / resolution);
 else
   resolution = 1;
 end
