@@ -1,21 +1,46 @@
-function [n,xc,ll] = find_skew(orig, part, range)
-% [n,xc,ll] = find_skew(orig, part, range)
-%    <orig> is an original waveform; <part> is a candidate copy.  
-%    <range> (default: length(part)/2) specifies the absolute maximum value
+function [n,xc,ll] = find_skew(test, ref, range, resolution, dosquare)
+% [n,xc,ll] = find_skew(test, ref, range, resolution, dosquare)
+%    <test> is a test waveform; <ref> is a reference we are
+%    comparing it to.  <n> returns the index of <test> within
+%    <ref>; if <test> is ref but with some samples prepended (i.e.,
+%    <test> is a delayed version of <ref>), <n> returns as a
+%    positive value, the location of the maximum of the
+%    cross-correlation function, or equivalently the sample index
+%    within <ref> that best lines up with the first sample of <test>.
+%    <range> (default: length(ref)/2) specifies the absolute maximum value
 %    to search for <n>, or, if a two-element vector, the min and max values
 %    to try for <n>.
-%    Return in <n> the optimal alignment within <orig> of the start of
-%    <part> based on maximum cross-correlation (can be negative if <part>
-%    includes material before beginning of <orig>).
+%    <resolution> is the required accuracy in samples.  Waveforms
+%    will be downsampled to do no better than this (0 = no
+%    downsampling, default = 16).
+%    <dosquare> set to 1 causes cross-correlation to be performed
+%    on squared signals (gives better results for signals with
+%    small amounts of clock drift).
 %    <xc> returns the actual cross-correlation function, and <ll>
 %    the corresponding lag indices
 % 2011-02-11 Dan Ellis dpwe@ee.columbia.edu
 
 if nargin < 3;  range = []; end
+if nargin < 4;  resolution = 16; end
+if nargin < 5;  dosquare = 0; end
+
+if resolution > 1
+  test = resample(test, 1, resolution);
+  ref = resample(ref, 1, resolution);
+  range = round(range / resolution);
+else
+  resolution = 1;
+end
+
+% I find I can handle clock drift better if I square the signals
+if dosquare
+  test = test.^2;
+  ref = ref.^2;
+end
 
 if length(range) == 0;
-  rangemin = -length(part)+1;
-  rangemax = length(orig);
+  rangemin = -length(ref)+1;
+  rangemax = length(test);
 elseif length(range) == 1
   rangemin = -abs(range);
   rangemax = abs(range);
@@ -29,15 +54,15 @@ xc = zeros(rangemax-rangemin+1,1);
 %% find offset between clean and noisy
 %maxlag = max(abs(range));
 %
-%%xc = xcorr(orig, part, maxlag);
-%%xcorig = find(abs(xc)==max(abs(xc)))-(maxlag+1);
+%%xc = xcorr(test, ref, maxlag);
+%%xctest = find(abs(xc)==max(abs(xc)))-(maxlag+1);
 %xc = xc(rangevals + maxlag + 1);
 
 % cross-correlate by convolution
-xcr = fftfilt(flipud(part),[orig;zeros(length(part),1)]);
+xcr = fftfilt(flipud(ref),[test;zeros(length(ref),1)]);
 % actual lags this result corresponds to
-%ll = (-length(part))+[1:length(xcr)];
-lagmin = -length(part)+1;
+%ll = (-length(ref))+[1:length(xcr)];
+lagmin = -length(ref)+1;
 
 xcmax = min(lagmin + (find(abs(xcr)==max(abs(xcr))))) - 1;
 
@@ -52,7 +77,7 @@ touse = (max(0,-offset)+1):min(length(xc),length(xcr)-offset);
 
 xc(touse) = xcr(offset+touse);
 %ll = ll(offset+touse);
-ll = [rangemin:rangemax]';
+ll = resolution * [rangemin:rangemax]';
 
 % % trim files to be aligned
 % if xcmax > 0
@@ -67,6 +92,6 @@ ll = [rangemin:rangemax]';
 % dc = dc(1:dlen);
 % TE = TS + dlen/sr;
 
-%disp(['Optimal alignment: part is delayed by ',num2str(xcmax),' samples']);
+%disp(['Optimal alignment: ref is delayed by ',num2str(xcmax),' samples']);
 
-n = xcmax;
+n = resolution * xcmax;
