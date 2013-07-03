@@ -31,7 +31,7 @@ def best_filter_coefficients( M, R ):
     # Iterate through rows, columns
     for i, (M_i, R_i) in enumerate( zip( M, R ) ):
         l1_sum = lambda H_i: np.sum( np.abs( M_i.real + M_i.imag*1j - (H_i[0]*R_i.real + H_i[0]*R_i.imag*1j + H_i[1]*R_i.real*1j - H_i[1]*R_i.imag) ) )
-        H[i] = scipy.optimize.minimize( l1_sum, H[i], bounds=[(0, 1e100), (0, 1e100)], method='L-BFGS-B' ).x
+        H[i] = scipy.optimize.minimize( l1_sum, H[i], bounds=[(-100e100, 1e100), (-100e100, 1e100)], method='L-BFGS-B' ).x
     return (H[:, 0] + H[:, 1]*1j).reshape( -1, 1 )
 
 # <codecell>
@@ -69,12 +69,16 @@ def separate( mix, source, fs ):
     N = 1024
     R = N/4
     
+    # Make sure they are the same length again
+    mix, source = pad( mix, source )
+    
     # Compute spectrograms, only over the first 60 seconds (hack, should be controllable)
     mix_spec = librosa.stft( mix[:60*fs], n_fft=N, hop_length=R )
     source_spec = librosa.stft( source[:60*fs], n_fft=N, hop_length=R )
     
     # Compute the best filter
-    H = best_filter_complex( mix_spec, source_spec )
+    H = best_filter_coefficients( mix_spec, source_spec )
+
     # Apply it in the frequency domain (ignoring aliasing!  Yikes)
     source_spec = librosa.stft( source, n_fft=N, hop_length=R )
     source_spec_filtered = H*source_spec
