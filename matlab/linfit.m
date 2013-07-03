@@ -1,11 +1,13 @@
-function [A,B] = linfit(X,Y,T,VIZ)
-% [a,b] = linfit(x,y,t,viz)
+function [A,B,S,P] = linfit(X,Y,T,VIZ)
+% [a,b,s] = linfit(x,y,t,viz)
 %   Try to find a linear regression of y onto x
 %   s.t. y[n] = a x[n] + b
 %   Do this with rejection of outliers more than t x the 10th
 %   percentile (default 2) of distances away
 %   from the fit (i.e. where |y - ax + b| > t).  
 %   Iterative, heuristic solution.
+%   <s> returns the SD of included points around lin fit.
+%   <p> returns the proportion of points included in lin fit.
 % 2012-09-24 Dan Ellis dpwe@ee.columbia.edu
 
 if nargin < 3;  T = 2.0;  end
@@ -61,6 +63,11 @@ while nits < 20 && length(keep) < nkeep
   % Will remove the point immediately preceding an extreme slope,
   % but outliers will have large slopes both before and after, so
   % will tend to be taken.  
+  
+  % Proportion of points retained
+  P = length(keep)/length(X);
+  % SD around line of retained points
+  S = sqrt(mean( (Y(keep)-(A*X(keep)+B)).^2));
   
   if VIZ
     disp(['Keep from ',num2str(length(oldkeep)),' to ', ...

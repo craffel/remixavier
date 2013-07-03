@@ -1,5 +1,5 @@
-function [y,M,DTARG] = weinerenhance(target, accomp, thresh, transit, fftlen)
-% [y,M,D] = weinerenhance(target, accomp, thresh, transit, fftlen)
+function [y,M,DTARG] = wienerenhance(target, accomp, thresh, transit, fftlen)
+% [y,M,D] = wienerenhance(target, accomp, thresh, transit, fftlen)
 %   Enhance a target by keeping only cells where it is large
 %   compared to an estimated accompaniment (e.g. the resid and targ
 %   from find_in_mix).
@@ -17,7 +17,7 @@ if nargin < 5;  fftlen = 2048; end
 if size(target,2) > 1
   % stereo signal, factor into channels
   for i = 1:size(target,2)
-    [y(:,i),M(:,:,i),DTARG(:,:,i)] = weinerenhance(target(:,i),accomp(:,i), ...
+    [y(:,i),M(:,:,i),DTARG(:,:,i)] = wienerenhance(target(:,i),accomp(:,i), ...
                                                    thresh, transit, ...
                                                    fftlen);
   end
@@ -27,6 +27,10 @@ else
   DTARG = stft(target, fftlen, fftlen, fftlen/4);
   DCOMP = stft(accomp, fftlen, fftlen, fftlen/4);
   frames = min(size(DTARG,2), size(DCOMP,2));
+  % remove zero frames (which mess up the log)
+  DTARG(find(DTARG==0)) = 1e-5;
+  DCOMP(find(DCOMP==0)) = 1e-5;
+  % Figure the DB ratio
   DBRAT = 20*log10(abs(DTARG(:,1:frames))) - 20*log10(abs(DCOMP(:,1:frames)));
 
   % It might be worth temporally smoothing DBRAT here to reduce

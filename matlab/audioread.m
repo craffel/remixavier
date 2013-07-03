@@ -16,6 +16,12 @@ if length(TARGETSR) == 0
   TARGETSR = 0;
 end
 
+if length(FN) > 2 && FN(1) == '~' && FN(2) == '/'
+  % tilde substitution
+  FN = [getenv('HOME'),FN(2:end)];
+end
+
+
 if exist(FN, 'file') == 0
   error(['audioread: file ',FN,' not found']);
 end
