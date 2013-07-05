@@ -111,7 +111,7 @@ end
 soundsc(resid(ix,:), sr);
 
 
-%% Example 3: Perfectly-aligned signals, and Weiner enhancement
+%% Example 3: Perfectly-aligned signals, and Wiener enhancement
 
 % Message In A Bottle is an ideal case - plain subtraction of mix
 % and instrumental yeilds clean vocals.  But how does estimation do?
@@ -133,11 +133,11 @@ soundsc(resid(ix,:), sr);
 % cells) to further reduce residual artifacts.  In particular, we
 % can suppress cells where the energy in the estimated vocals is
 % significantly lower than the energy in the instrumental line
-% projected into the mix.  weinerenhace takes a threshold so that
+% projected into the mix.  wienerenhace takes a threshold so that
 % energy in the residual that is below -6 dB when compared to the 
 % accompaniment is suppressed
 
-reswf = weinerenhance(resid, targ, -6.0);
+reswf = wienerenhance(resid, targ, -6.0);
 soundsc(reswf(ix,:), sr);
 
 % We can measure SNR by canceling against the true vocals, which
@@ -150,7 +150,7 @@ soundsc(dvox(ix,:), sr);  % Yes, sounds clean
 [r2, t2, f2, S2, d2, fs2] = find_in_mix(reswf,dvox,sr,0.010,0.003);
 %Delay = 0.000000 s
 %SNR = 16.1096 dB
-% Weiner filtering introduces more artifact energy than it removes
+% Wiener filtering introduces more artifact energy than it removes
 % interference.
 
 %% Example 4: Imogen Heap Instrumental Version
@@ -197,9 +197,9 @@ ll = min(length(dmr),length(dinsf));
 dvx = dmr(1:ll,:) - dinsf(1:ll,:);
 soundsc(dvx(ix,:),sr);
 
-% You can do OK with weiner enhancement even without cancelation
+% You can do OK with wiener enhancement even without cancelation
 fftlen = 2048;
-[mixwf,M] = weinerenhance(dmr, dins, 12.0, 2.0, fftlen);
+[mixwf,M] = wienerenhance(dmr, dins, 12.0, 2.0, fftlen);
 ff = [0:fftlen/2]*sr/fftlen;
 tt = [1:size(M,2)]*fftlen/4/sr;
 imagesc(tt,ff,M(:,:,1)); axis xy  % the spectrogram mask
@@ -207,7 +207,7 @@ xlabel('Time'); ylabel('Frequency');
 axis([20 40 0 4000])
 soundsc(mixwf(ix,:), sr);
 % but it sounds better based on the enhanced version
-[reswf,M] = weinerenhance(resid, targ, 12.0, 2.0);
+[reswf,M] = wienerenhance(resid, targ, 12.0, 2.0);
 soundsc(reswf(ix,:), sr);
 
 %% Command line version
@@ -215,14 +215,14 @@ soundsc(reswf(ix,:), sr);
 % remixavier.m wraps these processes into a single function,
 % suitable for turning into a compiled Matlab command-line binary:
 
-remixavier -mix ../Data/mc-paul-mix.mp3 -ref ../Data/mc-paul-instr.mp3 -out tmp.wav -dur 60 -weiner_thresh 3.0 -gain 0.9
+remixavier -mix ../Data/mc-paul-mix.mp3 -part ../Data/mc-paul-instr.mp3 -out tmp.wav -dur 60 -wiener_thresh 3.0 -gain 0.9
 % use -help to see all the options
 remixavier -help
 
 
 %% Still to do
 %
-% When the reference signal has very low energy, the coupling
+% When the partial signal has very low energy, the coupling
 % estimation goes crazy trying to boost it up to get rid of some of
 % the energy.  We should put in some kind of
 % regularization/threshold to stop this.
@@ -285,6 +285,10 @@ remixavier -help
 
 %% Changelog
 
+% v0.02  2013-07-02 - added -alignout
+%                   - some changes to audioread (tilde, ...)
+%                   - now published with spublish (for sounds)
+% 
 % v0.01  2013-07-01 Initial release
 
 % Last updated: $Date: 2011/12/09 20:30:34 $

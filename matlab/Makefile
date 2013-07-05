@@ -44,7 +44,8 @@ SRCS=${DEMOFILE}.m ${PROG}.m \
 	linfit.m \
 	stxcorr.m \
 	frame.m \
-	weinerenhance.m \
+	percentile.m \
+	wienerenhance.m \
 	\
 	audioread.m \
 	audiowrite.m
@@ -62,7 +63,7 @@ DEMOINDEX=html/index.html
 all: dist
 
 ${DEMOHTML}: ${SRCS} ${DATA} 
-	${MATLAB} -r "publish ${DEMOFILE}; exit"
+	${MATLAB} -r "spublish ${DEMOFILE}; exit"
 
 ${DEMOINDEX}: ${DEMOHTML}
 	sed -e 's@<div class="content">@<a href="http://www.ee.columbia.edu/~dpwe/">Dan Ellis</a> : <a href="http://www.ee.columbia.edu/~dpwe/resources/">Resources</a>: <a href="http://www.ee.columbia.edu/~dpwe/resources/matlab/">Matlab</a>: <div class="content">@' -e 's/amp;auml;/auml;/g' -e 's/@VER@/${VER}/g' < ${DEMOHTML} > ${DEMOINDEX}

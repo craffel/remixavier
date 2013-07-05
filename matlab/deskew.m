@@ -1,7 +1,7 @@
-function [y,a,b] = deskew(dm,dr,sr,PLOT)
-% [y,o,k] = deskew(mix,ref,sr,PLOT)
-%    y is a version of mix that temporally aligns as well as possible
-%    with ref, which involves delaying the start by o and stretching
+function [y,a,b] = deskew(dr,dp,sr,PLOT)
+% [y,o,k] = deskew(ref,part,sr,PLOT)
+%    y is a version of ref that temporally aligns as well as possible
+%    with part, which involves delaying the start by o and stretching
 %    the timebase by factor k.
 % 2013-06-29 Dan Ellis dpwe@ee.columbia.edu
 
@@ -9,31 +9,31 @@ if nargin < 3; sr = 44100; end
 if nargin < 4; PLOT = 0; end
 
 % convert to mono
-if size(dm,2) > 1;  dmm = sum(dm,2); else   dmm = dm; end
 if size(dr,2) > 1;  drm = sum(dr,2); else   drm = dr; end
+if size(dp,2) > 1;  dpm = sum(dp,2); else   dpm = dp; end
 
 % This is a cut down version of skewview
 % Set the skewview parameters
-xcorrwinsec = 4.0;
-xcorrhopsec = 1.0;
+xcorrwinsec = 10.0;
+xcorrhopsec = 2.0;
 xcorrmaxlagsec = 2.0;
 backoffsec = 0.5;
-xcorrpeakthresh = 0.1;
+xcorrpeakthresh = 0.2;
 fitthresh = 2.0;
 
 % Find best global xcorr to nearest 1 ms
 dosquare = 1;
-n = find_skew(dmm, drm, [], round(sr/1000), dosquare);
+n = find_skew(drm, dpm, [], round(sr/1000), dosquare);
 initialdelay = n/sr;
 if n < 0
-  msg = ' (ref starts before mix)';
+  msg = ' (part starts before ref)';
 elseif n > 0
-  msg = ' (mix starts before ref)';
+  msg = ' (ref starts before part)';
 else
   msg = '';
 end
 
-disp(['Inital estimate of t_mix - t_ref = ', ...
+disp(['Inital estimate of t_ref - t_part = ', ...
       sprintf('%.6f',initialdelay), msg]);
 
 % apply backoff so final time offset is most likely to be a trim,
@@ -42,11 +42,11 @@ n = n - round(backoffsec*sr);
 initialdelay = n/sr;  %%%% reassignment
 
 if n > 0
-  % chop off first part of mix
-  dmm = dmm((n+1):end);
+  % chop off first part of ref
+  drm = drm((n+1):end);
 else
-  % dm starts midway through dr, pre-pad it with zeros to compensate
-  dmm = [zeros(-n,1);dmm];
+  % dr starts midway through dp, pre-pad it with zeros to compensate
+  drm = [zeros(-n,1);drm];
 end
 
 xcorrwin = round(sr * xcorrwinsec);
@@ -54,11 +54,11 @@ xcorrmaxlag = round(sr * xcorrmaxlagsec);
 xcorrhop = round(sr * xcorrhopsec);
 
 disp('Calculating short-time cross-correlation...');
-[Z,E] = stxcorr(dmm,drm,xcorrwin,xcorrhop,xcorrmaxlag);
+[Z,E] = stxcorr(drm,dpm,xcorrwin,xcorrhop,xcorrmaxlag);
 % normalized xcorr
 ZN = Z.*repmat(1./E,size(Z,1),1);
 
-[zmax,zmaxpos] = max(ZN);
+[zmax,zmaxpos] = max(abs(ZN));
 
 % remove points where correlation is much lower than peak
 zmaxpos(find(zmax<(xcorrpeakthresh*max(zmax)))) = NaN;
@@ -67,9 +67,10 @@ zmaxpos(find(zmax<(xcorrpeakthresh*max(zmax)))) = NaN;
 zmaxsec = (zmaxpos-xcorrmaxlag-1)/sr;
 % hence best linear fit?
 tt = [1:length(zmaxpos)]*xcorrhop/sr;
-[a,b] = linfit(tt, zmaxsec, fitthresh); %,1 for debug in linfit
+[a,b,lfs,lfp] = linfit(tt, zmaxsec, fitthresh); %,1 for debug in linfit
 a = a+1;
-disp(sprintf('Lin fit: t_mix = %.6f t_ref + %.3f', a,b+initialdelay));
+disp(sprintf(' Lin fit stats: sd = %.6f prop pts = %.3f',lfs,lfp));
+disp(sprintf(' Lin fit: t_ref = %.6f t_part + %.3f', a,b+initialdelay));
 
 if PLOT
   ll = initialdelay + [-xcorrmaxlag:xcorrmaxlag]/sr;
@@ -78,8 +79,8 @@ if PLOT
   colormap(1-gray);
   colorbar
 
-  xlabel('t_ref / sec','interpreter','none')
-  ylabel('t_mix - t_ref / sec','interpreter','none');
+  xlabel('t_part / sec','interpreter','none')
+  ylabel('t_ref - t_part / sec','interpreter','none');
   
   hold on; 
   plot(tt, initialdelay + zmaxsec,'.y'); % yellow dots
@@ -89,18 +90,18 @@ end
 % Apply time offset as pad/trim
 n2 = round(b*sr);
 if n2 >= 0
-  dmm = dmm((n2+1):end);
+  drm = drm((n2+1):end);
 else
-  dmm = [zeros(-n2,1);dmm];
+  drm = [zeros(-n2,1);drm];
 end
 
 % total skew
 n = n + n2;
 % apply to stereo input
 if n > 0
-  dm = dm(n+1:end,:);
+  dr = dr(n+1:end,:);
 else
-  dm = [zeros(-n,size(dm,2));dm];
+  dr = [zeros(-n,size(dr,2));dr];
 end
 
 % Apply time scaling via resampling
@@ -114,10 +115,10 @@ if p0 < 2^15
   er = (a - p./q); 
   [ee,xx] = min(abs(er));
   disp(['Resampling ratio: ',sprintf('%d/%d=%.6f',p(xx),q(xx),p(xx)/q(xx))]);
-  for i = 1:size(dm,2)
-    y(:,i) = resample(dm(:,i),q(xx),p(xx));
+  for i = 1:size(dr,2)
+    y(:,i) = resample(dr(:,i),q(xx),p(xx));
   end
 else
   % too close to straight time to resample
-  y = dm;
+  y = dr;
 end
