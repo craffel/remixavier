@@ -95,14 +95,14 @@ def deskew(dm, dr, sr=44100):
             dm = np.hstack( [np.zeros( (dm.shape[0], -n) ), dm] )
         y = np.zeros( (dm.shape[0], dm.shape[1]*a) )
         for n, channel in enumerate( dm ):
-            y[n, :] = scipy.signal.resample( channel, a*channel.shape[0] )
+            y[n, :] = librosa.resample( channel, fs, a*fs )
     else:
         # apply to stereo input
         if n > 0:
             dm = dm[:n]
         else:
             dm = np.append( np.zeros( -n ), dm )
-        y = scipy.signal.resample( dm, a*dm.shape[0] )
+        y = librosa.resample( dm, fs, a*fs )
     
     return y
 
@@ -181,7 +181,6 @@ def find_skew(test, ref, search_range=np.array([]), resolution=16):
     '''
 
     if resolution > 1:
-        #test = scipy.signal.resample(test, test.shape[0]/(1.0*resolution))
         test = librosa.resample( test, test.shape[0], test.shape[0]/(1.0*resolution) )
         ref = librosa.resample( ref, ref.shape[0], ref.shape[0]/(1.0*resolution) )
         search_range = np.round(search_range/resolution)
@@ -227,8 +226,7 @@ def find_skew(test, ref, search_range=np.array([]), resolution=16):
 # <codecell>
 
 if __name__=='__main__':
-    a, fs = librosa.load( '../Data/wild-mix.wav', sr=None )
-    b, fs = librosa.load( '../Data/wild-instr.wav', sr=None )
-    c = deskew( a, b, fs )
-    librosa.output.write_wav( 'wild-mix-aligned.wav', c, fs )
+    a, fs = librosa.load( '../Data/aha-mix.wav', sr=None )
+    b, fs = librosa.load( '../Data/aha-instr.wav', sr=None )
+    librosa.output.write_wav( '../Data/aha-mix-aligned.wav', c, fs )
 
