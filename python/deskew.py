@@ -103,6 +103,7 @@ def deskew(dm, dr, sr=44100):
         else:
             dm = np.append( np.zeros( -n ), dm )
         y = scipy.signal.resample( dm, a*dm.shape[0] )
+    
     return y
 
 # <codecell>
@@ -139,19 +140,18 @@ def stxcorr(X, Y=np.array([]), W=2000, H=None, N=None):
     nfr = 1 + np.floor((LX - W)/H)
     
     Z = np.zeros((npts, nfr))
-    E = np.zeros((1, nfr));
+    E = np.zeros((1, nfr))
     
     nframes = 1 + int( (LX - W)/H )
-    XX = np.zeros( (2*W, nframes), dtype=np.complex )
-    YY = np.zeros( (2*W, nframes), dtype=np.complex )
     xx = np.zeros( (2*W, nframes) )
+    E = np.zeros( nframes )
     for n in xrange( nframes ):
-        XX[:, n] = np.fft.fft( X[n*H:n*H + W], 2*W )
-        YY[:, n] = np.fft.fft( Y[n*H:n*H + W], 2*W )
-        xx[:, n] = np.fft.ifft( XX[:, n]*np.conj( YY[:, n] ) ).real
+        XX = np.fft.fft( X[n*H:n*H + W], 2*W )
+        YY = np.fft.fft( Y[n*H:n*H + W], 2*W )
+        E[n] = np.sqrt( np.sum( np.abs( XX )**2 )*np.sum( np.abs( YY )**2 ))/(2*W)
+        xx[:, n] = np.fft.ifft( XX*np.conj( YY ) ).real
     
     Z = np.vstack( [xx[-N:, :], xx[:N + 1, :]] )
-    E = np.sqrt(np.sum(np.abs(XX)**2, axis=0)*np.sum(np.abs(YY)**2, axis=0))/(2*W)
     
     return Z, E
 
