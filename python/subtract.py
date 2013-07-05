@@ -100,7 +100,7 @@ def separate( mix, source, fs ):
 
 # <codecell>
 
-def weiner_enhance( target, accomp, thresh=-6, transit=3, n_fft=2048 ):
+def wiener_enhance( target, accomp, thresh=-6, transit=3, n_fft=2048 ):
     '''
     Given a noisy signal and a signal which approximates the noise, try to remove the noise.
     
@@ -111,7 +111,7 @@ def weiner_enhance( target, accomp, thresh=-6, transit=3, n_fft=2048 ):
         tranist - Sigmoid transition, default 3
         n_fft - FFT length, default 2048 (hop is always n_fft/4)
     Output:
-        filtered - Target, weiner filtered to try to remove noise
+        filtered - Target, Wiener filtered to try to remove noise
     '''
     target_spec = librosa.stft( target, n_fft=n_fft, hop_length=n_fft/4 )
     accomp_spec = librosa.stft( accomp, n_fft=n_fft, hop_length=n_fft/4 )
@@ -147,11 +147,11 @@ def pad( a, b ):
 
 if __name__ == '__main__':
     # 2013-06-28 Dan Ellis dpwe@ee.columbia,edu + Colin Raffel craffel@gmail.com
-    f = 'mc-paul'
+    f = 'azealia'
     mix, fs = librosa.load('../Data/{}-mix.wav'.format( f ), sr=None)
     source, fs = librosa.load('../Data/{}-instr.wav'.format( f ), sr=fs)
     sep, source_filtered = separate( mix, source, fs )
     librosa.output.write_wav( '../Data/{}-sep.wav'.format( f ), sep, fs )
-    enhanced = weiner_enhance( sep, source_filtered, 10 )
-    librosa.output.write_wav( '../Data/{}-sep-weiner.wav'.format( f ), enhanced, fs )
+    enhanced = wiener_enhance( sep, source_filtered, 0 )
+    librosa.output.write_wav( '../Data/{}-sep-wiener.wav'.format( f ), enhanced, fs )
 
