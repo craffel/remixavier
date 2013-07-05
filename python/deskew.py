@@ -70,7 +70,6 @@ def deskew(dm, dr, sr=44100):
     zmaxpos = np.argmax( np.abs( ZN ), axis=0 )
     zmax = np.abs( ZN[zmaxpos, np.arange( ZN.shape[1] )] )
     
-    # remove points where correlation is much lower than peak
     np.delete( zmaxpos, np.nonzero(zmax < xcorrpeakthresh*np.max(zmax)) )
     # actual times that corresponds to
     zmaxsec = (zmaxpos - xcorrmaxlag - 1)/(1.0*sr)
@@ -97,9 +96,9 @@ def deskew(dm, dr, sr=44100):
         for n, channel in enumerate( dm ):
             y[n, :] = librosa.resample( channel, fs, a*fs )
     else:
-        # apply to stereo input
+        # apply to mono input
         if n > 0:
-            dm = dm[:n]
+            dm = dm[n:]
         else:
             dm = np.append( np.zeros( -n ), dm )
         y = librosa.resample( dm, fs, a*fs )
@@ -226,7 +225,8 @@ def find_skew(test, ref, search_range=np.array([]), resolution=16):
 # <codecell>
 
 if __name__=='__main__':
-    a, fs = librosa.load( '../Data/aha-mix.wav', sr=None )
-    b, fs = librosa.load( '../Data/aha-instr.wav', sr=None )
-    librosa.output.write_wav( '../Data/aha-mix-aligned.wav', c, fs )
+    a, fs = librosa.load( '../Data/harlem-mix.mp3', sr=None )
+    b, fs = librosa.load( '../Data/harlem-instr.mp3', sr=None )
+    c = deskew( a, b, fs )
+    librosa.output.write_wav( '../Data/harlem-mix-aligned', c, fs )
 
