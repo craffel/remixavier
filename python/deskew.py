@@ -226,17 +226,9 @@ def find_skew(test, ref, search_range=np.array([]), resolution=16):
 
 # <codecell>
 
-a, fs = librosa.load( '../Data/wassup-mix.wav', sr=None )
-b, fs = librosa.load( '../Data/wassup-instr.wav', sr=None )
-
-# <codecell>
-
-c = deskew( a, b, fs )
-
-# <codecell>
-
-plt.figure( figsize=(24, 8) )
-plt.plot( a[:2000] )
-plt.plot( b[:2000] )
-plt.plot( c[:2000] )
+if __name__=='__main__':
+    a, fs = librosa.load( '../Data/wild-mix.wav', sr=None )
+    b, fs = librosa.load( '../Data/wild-instr.wav', sr=None )
+    c = deskew( a, b, fs )
+    librosa.output.write_wav( 'wild-mix-aligned.wav', c, fs )
 
