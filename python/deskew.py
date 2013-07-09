@@ -69,13 +69,17 @@ def deskew(dm, dr, sr=44100):
     
     zmaxpos = np.argmax( np.abs( ZN ), axis=0 )
     zmax = np.abs( ZN[zmaxpos, np.arange( ZN.shape[1] )] )
-    
-    np.delete( zmaxpos, np.nonzero(zmax < xcorrpeakthresh*np.max(zmax)) )
-    # actual times that corresponds to
-    zmaxsec = (zmaxpos - xcorrmaxlag - 1)/(1.0*sr)
+        
     # hence best linear fit?
     tt = np.arange( zmaxpos.shape[0] )*xcorrhop/sr
-    # This doesn't ignore outliers like DAn's code does
+    # Delete "small" peaks and outliers
+    todelete = zmax < xcorrpeakthresh*np.max(zmax)
+    todelete = np.nonzero( todelete )
+    zmaxpos = np.delete( zmaxpos, todelete )
+    tt = np.delete( tt, todelete )
+    
+    # actual times that corresponds to
+    zmaxsec = (zmaxpos - xcorrmaxlag - 1)/(1.0*sr)
     a, b = np.polyfit(tt, zmaxsec, 1)
     
     #scipy.io.savemat( 'workspace', {('py_' + k):v for k, v in locals().items() if isinstance(v, np.ndarray)} )
@@ -225,8 +229,8 @@ def find_skew(test, ref, search_range=np.array([]), resolution=16):
 # <codecell>
 
 if __name__=='__main__':
-    a, fs = librosa.load( '../Data/harlem-mix.mp3', sr=None )
-    b, fs = librosa.load( '../Data/harlem-instr.mp3', sr=None )
+    a, fs = librosa.load( '../Data/duffy-mix.wav', sr=None )
+    b, fs = librosa.load( '../Data/duffy-instr.wav', sr=None )
     c = deskew( a, b, fs )
-    librosa.output.write_wav( '../Data/harlem-mix-aligned', c, fs )
+    librosa.output.write_wav( '../Data/duffy-mix-aligned.wav', c, fs )
 
