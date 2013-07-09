@@ -247,6 +247,6 @@ def find_skew(test, ref, search_range=np.array([]), resolution=16):
 if __name__=='__main__':
     a, fs = librosa.load( '../Data/duffy-mix.wav', sr=None )
     b, fs = librosa.load( '../Data/duffy-instr.wav', sr=None )
-    c = deskew( a, b, fs )
+    c = deskew( a, b, fs, doplot=1 )
     librosa.output.write_wav( '../Data/duffy-mix-aligned.wav', c, fs )
 
