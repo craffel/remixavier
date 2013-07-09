@@ -70,6 +70,14 @@ def deskew(dm, dr, sr=44100, doplot=0):
     zmaxpos = np.argmax( np.abs( ZN ), axis=0 )
     zmax = np.abs( ZN[zmaxpos, np.arange( ZN.shape[1] )] )
         
+    if doplot:
+        import matplotlib.pyplot as plt
+        plt.figure( figsize=(12, 8) )
+        plt.imshow( ZN, aspect='auto', interpolation='nearest', cmap=plt.cm.gray )
+        plt.plot( zmaxpos, '.' )
+        plt.axis( 'tight' )
+        plt.show()
+        
     # hence best linear fit?
     tt = np.arange( zmaxpos.shape[0] )*xcorrhop/sr
     # Delete "small" peaks and outliers
@@ -86,6 +94,12 @@ def deskew(dm, dr, sr=44100, doplot=0):
     
     #scipy.io.savemat( 'workspace', {('py_' + k):v for k, v in locals().items() if isinstance(v, np.ndarray)} )
     
+    if doplot:
+        import matplotlib.pyplot as plt
+        plt.figure( figsize=(24, 8) )
+        plt.plot( tt, zmaxsec, '.' )
+        plt.plot( tt, a*tt + b )
+        plt.show()    
     a = a + 1
     
     n2 = np.round(b*sr)
