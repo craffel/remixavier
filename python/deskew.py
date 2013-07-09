@@ -16,7 +16,7 @@ import librosa
 
 # <codecell>
 
-def deskew(dm, dr, sr=44100):
+def deskew(dm, dr, sr=44100, doplot=0):
     '''
     [y,a,b] = deskew(mix,ref,sr,PLOT)
     y is a version of mix that temporally aligns as well as possible
@@ -73,7 +73,9 @@ def deskew(dm, dr, sr=44100):
     # hence best linear fit?
     tt = np.arange( zmaxpos.shape[0] )*xcorrhop/sr
     # Delete "small" peaks and outliers
-    todelete = zmax < xcorrpeakthresh*np.max(zmax)
+    todelete = np.logical_or( zmax < xcorrpeakthresh*np.max(zmax), np.logical_or( 
+                              zmaxpos < zmaxpos.mean() - 2*zmaxpos.std(), 
+                              zmaxpos > zmaxpos.mean() + 2*zmaxpos.std() ) )
     todelete = np.nonzero( todelete )
     zmaxpos = np.delete( zmaxpos, todelete )
     tt = np.delete( tt, todelete )
