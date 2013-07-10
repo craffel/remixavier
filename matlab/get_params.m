@@ -10,7 +10,10 @@ function [P,X] = get_params(args, table, progname)
 
 if nargin < 3; progname = 'get_params:'; end
 
+% Do we print an error message if we encounter unused options?
 warn = 1;
+% Do we return an error if there are unused options?
+error_if_unused = 1;
 
 n = length(table);
 if (mod(n, 3))
@@ -27,6 +30,7 @@ X = {};
 
 % Now process all arguments
 nunused = 0;
+help = 0;
 i = 1;
 while i <= length(args)
   found = 0;
@@ -48,15 +52,20 @@ while i <= length(args)
       end
     end
     if (~found)
-      nunused = nunused + 1;
-      if (warn)
-        warning(sprintf('Option ''%s'' not used.', args{i}));
+      % check for -h or -help
+      if strcmp(args{i}, '-h') || strcmp(args{i}, '-help')
+        help = 1;
       else
-        unused{2 * nunused - 1} = args{i};
-        if length(args) > i
-          % don't demand a value for the last, unused tag (e.g. -help)
-          unused{2 * nunused} = args{i + 1};
-        end 
+        nunused = nunused + 1;
+        if (warn)
+          warning(sprintf('Option ''%s'' not used.', args{i}));
+        else
+          unused{2 * nunused - 1} = args{i};
+          if length(args) > i
+            % don't demand a value for the last, unused tag (e.g. -help)
+            unused{2 * nunused} = args{i + 1};
+          end
+        end
       end
     end
     i = i+2;
@@ -68,7 +77,7 @@ while i <= length(args)
 end
 
 % Maybe print error message
-if nunused > 0
+if help || (error_if_unused && nunused > 0)
   disp(progname);
   for j = 1:3:n
     if isnumeric(table{j+1})
@@ -78,5 +87,6 @@ if nunused > 0
     end
     disp(sprintf('  -%s\t%s (%s)', table{j}, table{j+2}, val));
   end
-  error('unrecognized arguments');
+  %error('unrecognized arguments');
+  P = [];
 end

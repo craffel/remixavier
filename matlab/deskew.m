@@ -1,12 +1,19 @@
-function [y,a,b] = deskew(dr,dp,sr,PLOT)
-% [y,o,k] = deskew(ref,part,sr,PLOT)
+function [y,a,b] = deskew(dr,dp,sr,deskew_sr,dosquare,PLOT)
+% [y,o,k] = deskew(ref,part,sr,deskew_sr,dosquare,PLOT)
 %    y is a version of ref that temporally aligns as well as possible
 %    with part, which involves delaying the start by o and stretching
 %    the timebase by factor k.
+%    xcorr performed at sampling rate deskew_sr (default 1000).
+%    if dosquare nonzero, square signals before xcorr (default 1).
 % 2013-06-29 Dan Ellis dpwe@ee.columbia.edu
 
 if nargin < 3; sr = 44100; end
-if nargin < 4; PLOT = 0; end
+if nargin < 4; deskew_sr = 0; end
+if nargin < 5; dosquare = 1; end
+if nargin < 6; PLOT = 0; end
+
+if deskew_sr <= 0;  deskew_sr = 1000;  end
+
 
 % convert to mono
 if size(dr,2) > 1;  drm = sum(dr,2); else   drm = dr; end
@@ -22,8 +29,8 @@ xcorrpeakthresh = 0.2;
 fitthresh = 2.0;
 
 % Find best global xcorr to nearest 1 ms
-dosquare = 1;
-n = find_skew(drm, dpm, [], round(sr/1000), dosquare);
+%dosquare = 1;
+n = find_skew(drm, dpm, [], round(sr/deskew_sr), dosquare);
 initialdelay = n/sr;
 if n < 0
   msg = ' (part starts before ref)';
@@ -58,7 +65,13 @@ disp('Calculating short-time cross-correlation...');
 % normalized xcorr
 ZN = Z.*repmat(1./E,size(Z,1),1);
 
-[zmax,zmaxpos] = max(abs(ZN));
+if -min(ZN(:))>max(ZN(:))  % -ve correlation dominates
+  zsgn = -1;
+else
+  zsgn = 1;
+end
+
+[zmax,zmaxpos] = max(zsgn*ZN);
 
 % remove points where correlation is much lower than peak
 zmaxpos(find(zmax<(xcorrpeakthresh*max(zmax)))) = NaN;
@@ -84,6 +97,7 @@ if PLOT
   
   hold on; 
   plot(tt, initialdelay + zmaxsec,'.y'); % yellow dots
+  plot(tt, (a-1)*tt + b + initialdelay, '-y');
   hold off;
 end
 

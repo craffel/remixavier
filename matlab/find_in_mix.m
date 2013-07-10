@@ -30,7 +30,12 @@ if nargin < 7; Thop = Twin/2; end
 
 % find best skew (up to half a second)
 skewmaxsec = 0.5;
-mixdelay = find_skew(dmix, dclean, round(skewmaxsec*srmix));
+skewsamp = round(skewmaxsec*srmix);
+%resolution = 1;
+% so as not to hit limit in fftfilt.. under MATLAB R2010b
+resolution = ceil(length(dclean)/2^20);
+dosquare = 0;
+mixdelay = find_skew(dmix, dclean, skewsamp, resolution, dosquare);
 
 delay = mixdelay/srmix;
 disp(['Delay = ',sprintf('%.6f',delay),' s']);

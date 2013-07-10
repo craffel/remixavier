@@ -57,7 +57,7 @@ sr = 44100;
 % Attempt to trim and resample the full version to line up as well
 % as possible with the acapella
 doplot = 1;
-dmr = deskew(dmix, dins, sr, doplot);
+dmr = deskew(dmix, dins, sr, 0, 1, doplot);
 axis([0.5 55.5 1 1.5])
 % It gets better when you repeat it
 dmr = deskew(dmr, dins, sr);
@@ -210,15 +210,31 @@ soundsc(mixwf(ix,:), sr);
 [reswf,M] = wienerenhance(resid, targ, 12.0, 2.0);
 soundsc(reswf(ix,:), sr);
 
+
 %% Command line version
 %
 % remixavier.m wraps these processes into a single function,
 % suitable for turning into a compiled Matlab command-line binary:
 
 remixavier -mix ../Data/mc-paul-mix.mp3 -part ../Data/mc-paul-instr.mp3 -out tmp.wav -dur 60 -wiener_thresh 3.0 -gain 0.9
-% use -help to see all the options
-remixavier -help
 
+
+%% Graphics display
+%
+% The -do_plot option provides for various visualizations: -do_plot
+% 1 plots the initial cross-correlation alignment (similar to
+% skewview); -do_plot 2 plots each of the short-time cancellation
+% filter impulse responses, and -do_plot 3 shows aligned
+% spectrograms of the mixture, the equalized part, and the
+% residual:
+
+remixavier -mix ../Data/mc-paul-mix.mp3 -part ../Data/mc-paul-instr.mp3 -dur 60 -wiener_thresh 3.0 -do_plot 3
+
+%% Command-line arguments
+%
+% Invoke with -help to see all the command-line options:
+
+remixavier -help
 
 %% Still to do
 %
@@ -285,6 +301,10 @@ remixavier -help
 
 %% Changelog
 
+% v0.03  2013-07-09 - added new options for deskew_sr (sampling
+%                     rate for initial delay estimation, default
+%                     1000 Hz), changes to find_skew.
+%
 % v0.02  2013-07-02 - added -alignout
 %                   - some changes to audioread (tilde, ...)
 %                   - now published with spublish (for sounds)
