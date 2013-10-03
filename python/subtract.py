@@ -15,6 +15,38 @@ import scipy.optimize
 import scipy.signal
 import librosa
 
+# <markdowncell>
+
+# We want to have local filters which only deviate slightly over time.  For each frequency bin i, 
+# 
+# $\min_{H_i} \sum_t |M_{i, t} - H_{i, t}\cdot R_{i, t}| + \lambda \sum_t \overline{(H_{i, t} - H_{i, t-1})}(H_{i, t} - H_{i, t-1})$
+
+# <codecell>
+
+def best_local_filters( M, R, lam=.1 ):
+    '''
+    Get the best matrix H of local filters
+
+    Input:
+        M - matrix, size nbins x nframes
+        R - matrix, size nbins x nframes
+        lam - lagrange multiplier lambda, default .1
+    Output:
+        H - matrix, size nbins x nframes
+    '''
+    H = np.ones( M.shape, dtype=np.complex )
+    # For each frequency bin...
+    for i in xrange( M.shape[0] ):
+        def objective( H_i ):
+            H[i, :] = H_i[::2] + H_i[1::2]*1j
+            l1_sum = np.sum( np.abs( M[i, :] - H[i, :]*R[i, :] ) )
+            H_i_diff = H[i, :-1] - H[i, 1:]
+            regularizer = lam*np.sum( (H_i_diff.conj()*H_i_diff.conj()).real )
+            return l1_sum + regularizer
+        scipy.optimize.minimize( objective, np.ones( H.shape[1]*2 ), method='L-BFGS-B', options={'disp':1} )
+    
+    return H
+
 # <codecell>
 
 def best_filter_coefficients( M, R ):
@@ -28,7 +60,7 @@ def best_filter_coefficients( M, R ):
         H - vector, size nbins x 1
     '''
     H = np.zeros( (M.shape[0], 2) )
-    # Iterate through rows, columns
+    # For each frequency bin...
     for i, (M_i, R_i) in enumerate( zip( M, R ) ):
         l1_sum = lambda H_i: np.sum( np.abs( M_i.real + M_i.imag*1j - (H_i[0]*R_i.real + H_i[0]*R_i.imag*1j + H_i[1]*R_i.real*1j - H_i[1]*R_i.imag) ) )
         H[i] = scipy.optimize.minimize( l1_sum, H[i], bounds=[(-100e100, 1e100), (-100e100, 1e100)], method='L-BFGS-B' ).x
@@ -72,15 +104,17 @@ def separate( mix, source, fs ):
     # Make sure they are the same length again
     mix, source = pad( mix, source )
     
-    # Compute spectrograms, only over the first 60 seconds (hack, should be controllable)
-    mix_spec = librosa.stft( mix[:60*fs], n_fft=N, hop_length=R )
-    source_spec = librosa.stft( source[:60*fs], n_fft=N, hop_length=R )
+    # Compute spectrograms
+    mix_spec = librosa.stft( mix, n_fft=N, hop_length=R )
+    source_spec = librosa.stft( source, n_fft=N, hop_length=R )
     
     # Compute the best filter
-    H = best_filter_coefficients( mix_spec, source_spec )
+    #H = best_filter_coefficients( mix_spec, source_spec )
+    
+    # Get short-time magnitude filter
+    H = best_local_filters( mix_spec, source_spec )
 
     # Apply it in the frequency domain (ignoring aliasing!  Yikes)
-    source_spec = librosa.stft( source, n_fft=N, hop_length=R )
     source_spec_filtered = H*source_spec
     
     '''# Compute a highpass filter to get rid of the low end
@@ -147,8 +181,8 @@ def pad( a, b ):
 
 if __name__ == '__main__':
     # 2013-06-28 Dan Ellis dpwe@ee.columbia,edu + Colin Raffel craffel@gmail.com
-    f = 'azealia'
-    mix, fs = librosa.load('../Data/{}-mix.wav'.format( f ), sr=None)
+    f = 'kendrick-short'
+    mix, fs = librosa.load('../Data/{}-mix-aligned.wav'.format( f ), sr=None)
     source, fs = librosa.load('../Data/{}-instr.wav'.format( f ), sr=fs)
     sep, source_filtered = separate( mix, source, fs )
     librosa.output.write_wav( '../Data/{}-sep.wav'.format( f ), sep, fs )
