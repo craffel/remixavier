@@ -15,38 +15,6 @@ import scipy.optimize
 import scipy.signal
 import librosa
 
-# <markdowncell>
-
-# We want to have local filters which only deviate slightly over time.  For each frequency bin i, 
-# 
-# $\min_{H_i} \sum_t |M_{i, t} - H_{i, t}\cdot R_{i, t}| + \lambda \sum_t \overline{(H_{i, t} - H_{i, t-1})}(H_{i, t} - H_{i, t-1})$
-
-# <codecell>
-
-def best_local_filters( M, R, lam=.1 ):
-    '''
-    Get the best matrix H of local filters
-
-    Input:
-        M - matrix, size nbins x nframes
-        R - matrix, size nbins x nframes
-        lam - lagrange multiplier lambda, default .1
-    Output:
-        H - matrix, size nbins x nframes
-    '''
-    H = np.ones( M.shape, dtype=np.complex )
-    # For each frequency bin...
-    for i in xrange( M.shape[0] ):
-        def objective( H_i ):
-            H[i, :] = H_i[::2] + H_i[1::2]*1j
-            l1_sum = np.sum( np.abs( M[i, :] - H[i, :]*R[i, :] ) )
-            H_i_diff = H[i, :-1] - H[i, 1:]
-            regularizer = lam*np.sum( (H_i_diff.conj()*H_i_diff.conj()).real )
-            return l1_sum + regularizer
-        scipy.optimize.minimize( objective, np.ones( H.shape[1]*2 ), method='L-BFGS-B', options={'disp':1} )
-    
-    return H
-
 # <codecell>
 
 def best_filter_coefficients( M, R ):
@@ -109,11 +77,8 @@ def separate( mix, source, fs ):
     source_spec = librosa.stft( source, n_fft=N, hop_length=R )
     
     # Compute the best filter
-    #H = best_filter_coefficients( mix_spec, source_spec )
+    H = best_filter_coefficients( mix_spec, source_spec )
     
-    # Get short-time magnitude filter
-    H = best_local_filters( mix_spec, source_spec )
-
     # Apply it in the frequency domain (ignoring aliasing!  Yikes)
     source_spec_filtered = H*source_spec
     
