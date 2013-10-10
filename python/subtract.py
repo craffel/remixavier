@@ -17,6 +17,32 @@ import librosa
 
 # <codecell>
 
+def fix_offset( a, b, fs ):
+    '''
+    Given two signals with components in common, produces signals such that the offset is approximately zero
+
+    Input:
+        a - Some signal
+        b - Some other signal
+        fs - The sampling rate of the signals
+    Output:
+        a_offset - Version of "a" with alignment fixed
+        b_offset - Version of "b" with alignment fixed
+    '''
+    # Get correlation in both directions
+    a_vs_b = scipy.signal.fftconvolve( a[::2], b[:b.shape[0]/2][::-2], 'valid' )
+    b_vs_a = scipy.signal.fftconvolve( b[::2], a[:a.shape[0]/2][::-2], 'valid' )
+    # If the best peak was correlating mix vs clean...
+    if a_vs_b.max() > b_vs_a.max():
+        # Shift mix by adding zeros to the beginning of source
+        b = np.append( np.zeros( np.argmax( a_vs_b )*2 ), b )
+    # Or vice versa
+    else:
+        a = np.append( np.zeros( np.argmax( b_vs_a )*2 ), a )
+    return a, b
+
+# <codecell>
+
 def best_filter_coefficients( M, R ):
     '''
     Get the best vector H such that |M - HoR| is minimized, where M, H, R are complex
@@ -50,27 +76,14 @@ def separate( mix, source, fs ):
         source_filtered - the source, filtered by the channel estimation
     '''
     
-    # Maximum offset (in samples) to search over
-    offset_max = 2*fs
-    # Get correlation in both directions
-    mix_vs_clean = np.correlate( mix[:offset_max], source[:offset_max*2] )
-    clean_vs_mix = np.correlate( source[:offset_max], mix[:offset_max*2] )
-    # If the best peak was correlating mix vs clean...
-    if mix_vs_clean.max() > clean_vs_mix.max():
-        # Shift mix by adding zeros to the beginning of source
-        offset = offset_max - np.argmax( mix_vs_clean )
-        mix = np.append( np.zeros( offset ), mix )
-    # Or vice versa
-    else:
-        offset = offset_max - np.argmax( clean_vs_mix )
-        source = np.append( np.zeros( offset ), source )
+    # Fix any gross timing offset
+    mix, source = fix_offset( mix, source, fs )
+    # Make sure they are the same length again
+    mix, source = pad( mix, source )
     
     # Window and hop sizes
     N = 1024
     R = N/4
-    
-    # Make sure they are the same length again
-    mix, source = pad( mix, source )
     
     # Compute spectrograms
     mix_spec = librosa.stft( mix, n_fft=N, hop_length=R )
