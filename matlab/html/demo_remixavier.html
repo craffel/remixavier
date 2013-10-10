@@ -5,7 +5,7 @@ PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <!--
 This HTML was auto-generated from MATLAB code.
 To make changes, update the MATLAB code and republish this document.
---><title>REMIXAVIER - Tools for recombining different mixes of a track</title><meta name="generator" content="MATLAB 7.11"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2013-07-03"><meta name="DC.source" content="demo_remixavier.m"><style type="text/css">
+--><title>REMIXAVIER - Tools for recombining different mixes of a track</title><meta name="generator" content="MATLAB 7.11"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2013-07-09"><meta name="DC.source" content="demo_remixavier.m"><style type="text/css">
 body {
 background-color: white;
 margin:10px;
@@ -51,7 +51,7 @@ font-weight: lighter;
 font-style: italic;
 color: gray;
 }
-</style></head><body><div class="content"><h1>REMIXAVIER - Tools for recombining different mixes of a track</h1><!--introduction--><p>2013-06-28 Dan Ellis <a href="mailto:dpwe@ee.columbia.edu">dpwe@ee.columbia.edu</a></p><p>The Remixavier ("remix savior") project is concerned with recovering the "difference" between different mixes of the same track.  For instance, given a full mix and an instrumental, we can try to recover the vocals, or given the full mix and an a cappella version, we can try to produce an instrumental version.  In the process, we can identify the precise temporal alignment between the two versions, which may be useful in its own right.</p><p>Assuming we have a full mix M and an instrumental version I, under ideal conditions we could recover the vocal line V as M - I.  However, there are very often timing offsets and small sampling rate differences (clock drift) that will defeat the simple approach.  We estimate these timing differences with short-time cross correlation (in <a href="deskew.m">deskew.m</a>), and trim and resample to correct it to within a few parts per million (milliseconds of drift over the duration of a typical track).</p><p>But even with a perfect or near-perfect time alignment, there may be differences in gain, or more generally the channel frequency response, that will still make simple subtraction inadequate. Instead, we estimate the optimal equalization filter H to minimize the energy of M - H.I.  This is done within <a href="find_in_mix.m">find_in_mix.m</a>, which calls <a href="decomp_lin_win.m">decomp_lin_win.m</a> to break the pair of signals into short chunks (e.g. 8 second chunks every 4 second), estimate the best coupling impulse response of each chunk in <a href="decomp_lin.m">decomp_lin.m</a>, then overlap-add the canceled residuals to produce the desired difference.  This actually works by estimating a whitening filter for I so that the cross-correlation of the whitened versions of M and I is simply the coupling impulse response.</p><p>This approach to cancelation is inspired by the <a href="http://bass-db.gforge.inria.fr/bss_eval/">BSS_EVAL</a> procedure of Fevotte, Gribonval, and Vincent.  Essentially, we are finding the difference as the "artefacts residual" when M is considered an imperfect estimate of I.</p><!--/introduction--><h2>Contents</h2><div><ul><li><a href="#1">Example 1: Significant time skew and channel difference</a></li><li><a href="#2">Channel estimation for example 1</a></li><li><a href="#3">Example 2: Recovering instrumental, in stereo</a></li><li><a href="#4">Example 3: Perfectly-aligned signals, and Wiener enhancement</a></li><li><a href="#5">Example 4: Imogen Heap Instrumental Version</a></li><li><a href="#6">Command line version</a></li><li><a href="#7">Still to do</a></li><li><a href="#8">See also</a></li><li><a href="#9">Installation</a></li><li><a href="#10">Notes</a></li><li><a href="#11">Changelog</a></li></ul></div><h2>Example 1: Significant time skew and channel difference<a name="1"></a></h2><p>This example consists of an original instrumental track, digitized from a vinyl LP release, and a rap that uses the track as backing, taken directly from a CD.  Thus, the different signal paths mean that the timing is significantly different (clock drift of 0.1%), and the overall spectrum is very different too.</p><pre class="codeinput"><span class="comment">% Load in mix and acapella as mono files</span>
+</style></head><body><div class="content"><h1>REMIXAVIER - Tools for recombining different mixes of a track</h1><!--introduction--><p>2013-06-28 Dan Ellis <a href="mailto:dpwe@ee.columbia.edu">dpwe@ee.columbia.edu</a></p><p>The Remixavier ("remix savior") project is concerned with recovering the "difference" between different mixes of the same track.  For instance, given a full mix and an instrumental, we can try to recover the vocals, or given the full mix and an a cappella version, we can try to produce an instrumental version.  In the process, we can identify the precise temporal alignment between the two versions, which may be useful in its own right.</p><p>Assuming we have a full mix M and an instrumental version I, under ideal conditions we could recover the vocal line V as M - I.  However, there are very often timing offsets and small sampling rate differences (clock drift) that will defeat the simple approach.  We estimate these timing differences with short-time cross correlation (in <a href="deskew.m">deskew.m</a>), and trim and resample to correct it to within a few parts per million (milliseconds of drift over the duration of a typical track).</p><p>But even with a perfect or near-perfect time alignment, there may be differences in gain, or more generally the channel frequency response, that will still make simple subtraction inadequate. Instead, we estimate the optimal equalization filter H to minimize the energy of M - H.I.  This is done within <a href="find_in_mix.m">find_in_mix.m</a>, which calls <a href="decomp_lin_win.m">decomp_lin_win.m</a> to break the pair of signals into short chunks (e.g. 8 second chunks every 4 second), estimate the best coupling impulse response of each chunk in <a href="decomp_lin.m">decomp_lin.m</a>, then overlap-add the canceled residuals to produce the desired difference.  This actually works by estimating a whitening filter for I so that the cross-correlation of the whitened versions of M and I is simply the coupling impulse response.</p><p>This approach to cancelation is inspired by the <a href="http://bass-db.gforge.inria.fr/bss_eval/">BSS_EVAL</a> procedure of Fevotte, Gribonval, and Vincent.  Essentially, we are finding the difference as the "artefacts residual" when M is considered an imperfect estimate of I.</p><!--/introduction--><h2>Contents</h2><div><ul><li><a href="#1">Example 1: Significant time skew and channel difference</a></li><li><a href="#2">Channel estimation for example 1</a></li><li><a href="#3">Example 2: Recovering instrumental, in stereo</a></li><li><a href="#4">Example 3: Perfectly-aligned signals, and Wiener enhancement</a></li><li><a href="#5">Example 4: Imogen Heap Instrumental Version</a></li><li><a href="#6">Command line version</a></li><li><a href="#7">Graphics display</a></li><li><a href="#8">Command-line arguments</a></li><li><a href="#9">Still to do</a></li><li><a href="#10">See also</a></li><li><a href="#11">Installation</a></li><li><a href="#12">Notes</a></li><li><a href="#13">Changelog</a></li></ul></div><h2>Example 1: Significant time skew and channel difference<a name="1"></a></h2><p>This example consists of an original instrumental track, digitized from a vinyl LP release, and a rap that uses the track as backing, taken directly from a CD.  Thus, the different signal paths mean that the timing is significantly different (clock drift of 0.1%), and the overall spectrum is very different too.</p><pre class="codeinput"><span class="comment">% Load in mix and acapella as mono files</span>
 <span class="comment">% These tracks diverge at the end (different edits), so just work</span>
 <span class="comment">% on the first minute</span>
 sr = 44100;
@@ -60,7 +60,7 @@ sr = 44100;
 <span class="comment">% Attempt to trim and resample the full version to line up as well</span>
 <span class="comment">% as possible with the acapella</span>
 doplot = 1;
-dmr = deskew(dmix, dins, sr, doplot);
+dmr = deskew(dmix, dins, sr, 0, 1, doplot);
 axis([0.5 55.5 1 1.5])
 <span class="comment">% It gets better when you repeat it</span>
 dmr = deskew(dmr, dins, sr);
@@ -68,13 +68,14 @@ dmr = deskew(dmr, dins, sr);
 <span class="comment">% beyond that.</span>
 </pre><pre class="codeoutput">Inital estimate of t_ref - t_part = 1.258141 (ref starts before part)
 Calculating short-time cross-correlation...
-Lin fit stats: sd = 0.000335 prop pts = 0.679
-Lin fit: t_ref = 0.998957 t_part + 1.277
-Resampling ratio: 32573/32607=0.998957
+Lin fit stats: sd = 0.000631 prop pts = 0.400
+Lin fit: t_ref = 0.999002 t_part + 1.276
+Resampling ratio: 22027/22049=0.999002
 Inital estimate of t_ref - t_part = 0.000998 (ref starts before part)
 Calculating short-time cross-correlation...
-Lin fit stats: sd = 0.000312 prop pts = 0.768
-Lin fit: t_ref = 1.000003 t_part + 0.001
+Lin fit stats: sd = 0.000218 prop pts = 0.800
+Lin fit: t_ref = 0.999948 t_part + 0.003
+Resampling ratio: 19408/19409=0.999948
 </pre><img vspace="5" hspace="5" src="demo_remixavier_01.png" alt=""> <h2>Channel estimation for example 1<a name="2"></a></h2><pre class="codeinput"><span class="comment">% Do the short-time coupling filter estimation</span>
 tic; [resid, targ, filt, SNR, del, filts] = <span class="keyword">...</span>
 find_in_mix(dmr,dins,sr,0.013,0.003); toc
@@ -94,9 +95,9 @@ ylabel(<span class="string">'window time / sec'</span>)
 title(<span class="string">'local coupling filter impulse responses (cap -&gt; mix)'</span>)
 <span class="comment">% scale down impulse response extremes</span>
 caxis([-2 2])
-</pre><pre class="codeoutput">Delay = 0.000000 s
-SNR = 0.24403 dB
-Elapsed time is 7.740433 seconds.
+</pre><pre class="codeoutput">Delay = 0.000340 s
+SNR = 0.037485 dB
+Elapsed time is 8.243200 seconds.
 </pre><img vspace="5" hspace="5" src="demo_remixavier_02.png" alt=""> <h2>Example 2: Recovering instrumental, in stereo<a name="3"></a></h2><p>The Duffy track has the vocals in stereo, we can cancel left and right separately to good effect</p><pre class="codeinput">[dmix,sr] = mp3read(<span class="string">'../Data/Duffy.WarwickAvenue.mp3'</span>);
 [dcap,sr] = mp3read(<span class="string">'../Data/duffy_-_warwick_avenue_acapella.mp3'</span>);
 <span class="comment">% Deskew will process stereo files.  Skew is estimated from an</span>
@@ -111,20 +112,20 @@ find_in_mix(dmr(:,i),dcap(:,i),sr,0.006,0.003); toc
 soundsc(resid(ix,:), sr); <A HREF="demo_remixavier_02.wav"><IMG SRC="sound.png" ALT="[sound]" ALIGN="middle"></A>
 </pre><pre class="codeoutput">Inital estimate of t_ref - t_part = 10.304580 (ref starts before part)
 Calculating short-time cross-correlation...
-Lin fit stats: sd = 0.012610 prop pts = 0.318
-Lin fit: t_ref = 1.005622 t_part + 9.483
-Resampling ratio: 21463/21343=1.005622
-Inital estimate of t_ref - t_part = -0.013968 (part starts before ref)
+Lin fit stats: sd = 0.006009 prop pts = 0.272
+Lin fit: t_ref = 1.005778 t_part + 9.485
+Resampling ratio: 20018/19903=1.005778
+Inital estimate of t_ref - t_part = -0.011973 (part starts before ref)
 Calculating short-time cross-correlation...
-Lin fit stats: sd = 0.000735 prop pts = 0.289
-Lin fit: t_ref = 1.000272 t_part + -0.023
-Resampling ratio: 29439/29431=1.000272
-Delay = 0.000363 s
-SNR = -1.9232 dB
-Elapsed time is 25.024236 seconds.
-Delay = 0.000363 s
-SNR = -1.9223 dB
-Elapsed time is 22.534727 seconds.
+Lin fit stats: sd = 0.000283 prop pts = 0.631
+Lin fit: t_ref = 1.000134 t_part + -0.025
+Resampling ratio: 7471/7470=1.000134
+Delay = -0.000227 s
+SNR = -1.5445 dB
+Elapsed time is 24.347992 seconds.
+Delay = -0.000227 s
+SNR = -1.7085 dB
+Elapsed time is 24.232518 seconds.
 </pre><h2>Example 3: Perfectly-aligned signals, and Wiener enhancement<a name="4"></a></h2><pre class="codeinput"><span class="comment">% Message In A Bottle is an ideal case - plain subtraction of mix</span>
 <span class="comment">% and instrumental yeilds clean vocals.  But how does estimation do?</span>
 <span class="comment">% Load tracks as mono</span>
@@ -159,11 +160,11 @@ soundsc(dvox(ix,:), sr);  <span class="comment">% Yes, sounds clean</span> <A HR
 <span class="comment">% interference.</span>
 </pre><pre class="codeoutput">Inital estimate of t_ref - t_part = 0.000000
 Calculating short-time cross-correlation...
-Lin fit stats: sd = 0.000000 prop pts = 0.794
-Lin fit: t_ref = 1.000000 t_part + 0.000
+Lin fit stats: sd = 0.000000 prop pts = 0.793
+Lin fit: t_ref = 1.000000 t_part + -0.000
 Delay = 0.000000 s
 SNR = 1.9983 dB
-Elapsed time is 36.640787 seconds.
+Elapsed time is 42.697289 seconds.
 Delay = 0.000000 s
 SNR = 19.9197 dB
 Delay = 0.000000 s
@@ -205,33 +206,42 @@ soundsc(mixwf(ix,:), sr); <A HREF="demo_remixavier_08.wav"><IMG SRC="sound.png" 
 soundsc(reswf(ix,:), sr); <A HREF="demo_remixavier_09.wav"><IMG SRC="sound.png" ALT="[sound]" ALIGN="middle"></A>
 </pre><pre class="codeoutput">Inital estimate of t_ref - t_part = -0.025941 (part starts before ref)
 Calculating short-time cross-correlation...
-Lin fit stats: sd = 0.000034 prop pts = 0.799
+Lin fit stats: sd = 0.000011 prop pts = 0.783
 Lin fit: t_ref = 1.000000 t_part + -0.026
 Delay = 0.000000 s
 SNR = -2.0072 dB
-Elapsed time is 13.940067 seconds.
+Elapsed time is 14.881408 seconds.
 Delay = 0.000000 s
 SNR = -2.1378 dB
-Elapsed time is 13.226619 seconds.
+Elapsed time is 15.035218 seconds.
 </pre><img vspace="5" hspace="5" src="demo_remixavier_03.png" alt=""> <h2>Command line version<a name="6"></a></h2><p>remixavier.m wraps these processes into a single function, suitable for turning into a compiled Matlab command-line binary:</p><pre class="codeinput">remixavier <span class="string">-mix</span> <span class="string">../Data/mc-paul-mix.mp3</span> <span class="string">-part</span> <span class="string">../Data/mc-paul-instr.mp3</span> <span class="string">-out</span> <span class="string">tmp.wav</span> <span class="string">-dur</span> <span class="string">60</span> <span class="string">-wiener_thresh</span> <span class="string">3.0</span> <span class="string">-gain</span> <span class="string">0.9</span>
-<span class="comment">% use -help to see all the options</span>
-remixavier <span class="string">-help</span>
 </pre><pre class="codeoutput">Inital estimate of t_ref - t_part = -1.258141 (part starts before ref)
 Calculating short-time cross-correlation...
-Lin fit stats: sd = 0.000322 prop pts = 0.754
-Lin fit: t_ref = 1.001038 t_part + -1.278
-Resampling ratio: 10608/10597=1.001038
-Delay = 0.000726 s
-SNR = 0.32633 dB
-Delay = 0.001451 s
-SNR = 0.62638 dB
+Lin fit stats: sd = 0.000163 prop pts = 0.269
+Lin fit: t_ref = 1.001047 t_part + -1.277
+Resampling ratio: 16249/16232=1.001047
+Delay = 0.001905 s
+SNR = 0.33312 dB
+Delay = 0.002585 s
+SNR = 0.57672 dB
 Canceled audio written to tmp.wav
-Warning: Option '-help' not used. 
-*** remixavier v0.02 of 20130702
+</pre><h2>Graphics display<a name="7"></a></h2><p>The -do_plot option provides for various visualizations: -do_plot 1 plots the initial cross-correlation alignment (similar to skewview); -do_plot 2 plots each of the short-time cancellation filter impulse responses, and -do_plot 3 shows aligned spectrograms of the mixture, the equalized part, and the residual:</p><pre class="codeinput">remixavier <span class="string">-mix</span> <span class="string">../Data/mc-paul-mix.mp3</span> <span class="string">-part</span> <span class="string">../Data/mc-paul-instr.mp3</span> <span class="string">-dur</span> <span class="string">60</span> <span class="string">-wiener_thresh</span> <span class="string">3.0</span> <span class="string">-do_plot</span> <span class="string">3</span>
+</pre><pre class="codeoutput">Inital estimate of t_ref - t_part = -1.258141 (part starts before ref)
+Calculating short-time cross-correlation...
+Lin fit stats: sd = 0.000163 prop pts = 0.269
+Lin fit: t_ref = 1.001047 t_part + -1.277
+Resampling ratio: 16249/16232=1.001047
+Delay = 0.001905 s
+SNR = 0.33312 dB
+Delay = 0.002585 s
+SNR = 0.57672 dB
+segSNR = 15.2378 (over 29.2296% of frames)
+</pre><img vspace="5" hspace="5" src="demo_remixavier_04.png" alt=""> <h2>Command-line arguments<a name="8"></a></h2><p>Invoke with -help to see all the command-line options:</p><pre class="codeinput">remixavier <span class="string">-help</span>
+</pre><pre class="codeoutput">*** remixavier v0.03 of 20130709
 -mix	audio with extra source(s) ()
 -part	audio without extra source(s) ()
 -out	write audio output to this file ()
--alignout	write aligned mix to this file ()
+-alignout	write aligned part to this file ()
 -gain	scale output by this to avoid clipping (1)
 -mono	force files to mono? (0)
 -flip_stereo	flip L and R of part (0)
@@ -244,17 +254,13 @@ Warning: Option '-help' not used.
 -t_win	duration of filter estimation window in sec (1)
 -t_hop	hop between successive estimation wins in sec (0.5)
 -deskew_its	how many times to pass through deskew (1)
+-deskew_sr	sampling rate for initial deskew xcorr (1000)
+-square	square waveforms before initial xcorr (1)
 -do_plot	plot the results of deskewing (0)
 -wiener_win	STFT duration for Wiener filter (0.05)
 -wiener_thresh	local SNR threshold (in dB) for Wiener enhancement (-Inf)
 -wiener_width	transition width (in dB) for Wiener (3)
-</pre><pre class="codeoutput">Error using ==&gt; get_params at 81
-unrecognized arguments
-Error in ==&gt; remixavier at 19
-[P,X] = get_params(varargin, ...
-Error in ==&gt; demo_remixavier at 220
-remixavier -help
-</pre><h2>Still to do<a name="7"></a></h2><p>When the partial signal has very low energy, the coupling estimation goes crazy trying to boost it up to get rid of some of the energy.  We should put in some kind of regularization/threshold to stop this.</p><p>We don't expect the coupling filter to vary much along time, so we ought to be able to get an improvement by smoothing it along time (as in the median filtering on the Imogen Heap example). However, if there is any clock drift, we can't assume sample-level alignment of the individual impulse response estimates.  We could, however, estimate a single timing difference between each pair of impulse responses, then average them after backing that out.  For instance, we could fit a linear phase model to the phase responses of each individual coupling IR, then average their zero-phase versions, then reintroduce the individual phases (delays) to redistribute over each segment.</p><h2>See also<a name="8"></a></h2><p>This project was developed in collaboration with Colin Raffel as part of <a href="http://labrosa.ee.columbia.edu/hamr2013/">HAMR 2013</a>. There is another page describing the project in the <a href="http://labrosa.ee.columbia.edu/hamr2013/proceedings/doku.php/remixavier">HAMR Proceedings - Remixavier</a> The code and data are on github: <a href="https://github.com/craffel/remixavier">https://github.com/craffel/remixavier</a></p><h2>Installation<a name="9"></a></h2><p>This package has been compiled for several targets using the Matlab compiler.  You will also need to download and install the Matlab Compiler Runtime (MCR) Installer. Please see the table below:</p><p>
+</pre><h2>Still to do<a name="9"></a></h2><p>When the partial signal has very low energy, the coupling estimation goes crazy trying to boost it up to get rid of some of the energy.  We should put in some kind of regularization/threshold to stop this.</p><p>We don't expect the coupling filter to vary much along time, so we ought to be able to get an improvement by smoothing it along time (as in the median filtering on the Imogen Heap example). However, if there is any clock drift, we can't assume sample-level alignment of the individual impulse response estimates.  We could, however, estimate a single timing difference between each pair of impulse responses, then average them after backing that out.  For instance, we could fit a linear phase model to the phase responses of each individual coupling IR, then average their zero-phase versions, then reintroduce the individual phases (delays) to redistribute over each segment.</p><h2>See also<a name="10"></a></h2><p>This project was developed in collaboration with Colin Raffel as part of <a href="http://labrosa.ee.columbia.edu/hamr2013/">HAMR 2013</a>. There is another page describing the project in the <a href="http://labrosa.ee.columbia.edu/hamr2013/proceedings/doku.php/remixavier">HAMR Proceedings - Remixavier</a> The code and data are on github: <a href="https://github.com/craffel/remixavier">https://github.com/craffel/remixavier</a></p><h2>Installation<a name="11"></a></h2><p>This package has been compiled for several targets using the Matlab compiler.  You will also need to download and install the Matlab Compiler Runtime (MCR) Installer. Please see the table below:</p><p>
 <table border=1>
 <tr><th>Architecture</th><th>Compiled package</th><th>MCR Installer</th></tr>
 <tr><td>64 bit Linux</td>
@@ -263,7 +269,11 @@ remixavier -help
 <tr><td>64 bit MacOS</td>
 <td><a href="remixavier_MACI64.zip">remixavier_MACI64.zip</a></td>
 <td><a href="http://www.ee.columbia.edu/~dpwe/tmp/MCRInstaller.dmg">MACI64 MCR Installer</a></td></tr>
-</table></p><p>The original Matlab code used to build this compiled target is available at <a href="http://www.ee.columbia.edu/~dpwe/resources/matlab/remixavier">http://www.ee.columbia.edu/~dpwe/resources/matlab/remixavier</a></p><p>All sources are in the package <a href="remixavier-v@VER@.zip">remixavier-v@VER@.zip</a>.</p><p>Feel free to contact me with any problems.</p><h2>Notes<a name="10"></a></h2><p>The included function <a href="audioread.m">audioread</a> is able to read a wide range of sound file types, but relies on a number of other packages and/or support functions being installed.  Most obscure of these is  ReadSound, a MEX wrapper I wrote for the dpwelib sound file interface.  See the <a href="http://labrosa.ee.columbia.edu/matlab/audioread/">audioread homepage</a> for more details.</p><h2>Changelog<a name="11"></a></h2><pre class="codeinput"><span class="comment">% v0.02  2013-07-02 - added -alignout</span>
+</table></p><p>The original Matlab code used to build this compiled target is available at <a href="http://www.ee.columbia.edu/~dpwe/resources/matlab/remixavier">http://www.ee.columbia.edu/~dpwe/resources/matlab/remixavier</a></p><p>All sources are in the package <a href="remixavier-v@VER@.zip">remixavier-v@VER@.zip</a>.</p><p>Feel free to contact me with any problems.</p><h2>Notes<a name="12"></a></h2><p>The included function <a href="audioread.m">audioread</a> is able to read a wide range of sound file types, but relies on a number of other packages and/or support functions being installed.  Most obscure of these is  ReadSound, a MEX wrapper I wrote for the dpwelib sound file interface.  See the <a href="http://labrosa.ee.columbia.edu/matlab/audioread/">audioread homepage</a> for more details.</p><h2>Changelog<a name="13"></a></h2><pre class="codeinput"><span class="comment">% v0.03  2013-07-09 - added new options for deskew_sr (sampling</span>
+<span class="comment">%                     rate for initial delay estimation, default</span>
+<span class="comment">%                     1000 Hz), changes to find_skew.</span>
+<span class="comment">%</span>
+<span class="comment">% v0.02  2013-07-02 - added -alignout</span>
 <span class="comment">%                   - some changes to audioread (tilde, ...)</span>
 <span class="comment">%                   - now published with spublish (for sounds)</span>
 <span class="comment">%</span>
@@ -329,7 +339,7 @@ sr = 44100;
 % Attempt to trim and resample the full version to line up as well
 % as possible with the acapella
 doplot = 1;
-dmr = deskew(dmix, dins, sr, doplot);
+dmr = deskew(dmix, dins, sr, 0, 1, doplot);
 axis([0.5 55.5 1 1.5])
 % It gets better when you repeat it
 dmr = deskew(dmr, dins, sr);
@@ -455,7 +465,18 @@ soundsc(reswf(ix,:), sr); <A HREF="demo_remixavier_18.wav"><IMG SRC="sound.png" 
 % remixavier.m wraps these processes into a single function,
 % suitable for turning into a compiled Matlab command-line binary:
 remixavier -mix ../Data/mc-paul-mix.mp3 -part ../Data/mc-paul-instr.mp3 -out tmp.wav -dur 60 -wiener_thresh 3.0 -gain 0.9
-% use -help to see all the options
+%% Graphics display
+%
+% The -do_plot option provides for various visualizations: -do_plot
+% 1 plots the initial cross-correlation alignment (similar to
+% skewview); -do_plot 2 plots each of the short-time cancellation
+% filter impulse responses, and -do_plot 3 shows aligned
+% spectrograms of the mixture, the equalized part, and the
+% residual:
+remixavier -mix ../Data/mc-paul-mix.mp3 -part ../Data/mc-paul-instr.mp3 -dur 60 -wiener_thresh 3.0 -do_plot 3
+%% Command-line arguments
+%
+% Invoke with -help to see all the command-line options:
 remixavier -help
 %% Still to do
 %
@@ -517,6 +538,10 @@ remixavier -help
 % <http://labrosa.ee.columbia.edu/matlab/audioread/ audioread homepage>
 % for more details.
 %% Changelog
+% v0.03  2013-07-09 - added new options for deskew_sr (sampling
+%                     rate for initial delay estimation, default
+%                     1000 Hz), changes to find_skew.
+%
 % v0.02  2013-07-02 - added -alignout
 %                   - some changes to audioread (tilde, ...)
 %                   - now published with spublish (for sounds)

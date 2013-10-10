@@ -24,6 +24,8 @@ if nargin < 3;  range = []; end
 if nargin < 4;  resolution = 16; end
 if nargin < 5;  dosquare = 0; end
 
+%disp(['resolution = ', num2str(resolution)]);
+
 if resolution > 1
   test = resample(test, 1, resolution);
   ref = resample(ref, 1, resolution);
@@ -64,7 +66,9 @@ xcr = fftfilt(flipud(ref),[test;zeros(length(ref),1)]);
 %ll = (-length(ref))+[1:length(xcr)];
 lagmin = -length(ref)+1;
 
-xcmax = min(lagmin + (find(abs(xcr)==max(abs(xcr))))) - 1;
+%xcmax = min(lagmin + (find(abs(xcr)==max(abs(xcr))))) - 1;
+
+%plot(xcr)
 
 % where in ll does the first value to be returned in xcvals occur?
 offset = rangemin - lagmin;   % ll(offset+1) = rangevals(1) or
@@ -78,6 +82,10 @@ touse = (max(0,-offset)+1):min(length(xc),length(xcr)-offset);
 xc(touse) = xcr(offset+touse);
 %ll = ll(offset+touse);
 ll = resolution * [rangemin:rangemax]';
+
+%xcmax = min(lagmin + (find(abs(xcr)==max(abs(xcr))))) - 1;
+
+n = ll(find(abs(xc) == max(abs(xc))));
 
 % % trim files to be aligned
 % if xcmax > 0
@@ -94,4 +102,5 @@ ll = resolution * [rangemin:rangemax]';
 
 %disp(['Optimal alignment: ref is delayed by ',num2str(xcmax),' samples']);
 
-n = resolution * xcmax;
+%n = resolution * xcmax;
+

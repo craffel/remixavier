@@ -33,8 +33,6 @@ while [ $# -gt 0 ]; do
     shift
 done
 prjname=`echo $0 | sed -e "s@.*/@@" -e 's@\.[^.]*$@@' -e "s/^run_//"`
-#echo "args=$args"
-#eval "${exe_dir}"/${prjname}_$MWE_ARCH $args
 eval "${exe_dir}"/${prjname}_prj $args
 
 exit

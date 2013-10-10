@@ -27,8 +27,8 @@
     <param.undefines />
     <param.debug>false</param.debug>
     <param.share.mcr>false</param.share.mcr>
-    <param.disable.jvm>true</param.disable.jvm>
-    <param.disable.display>true</param.disable.display>
+    <param.disable.jvm>false</param.disable.jvm>
+    <param.disable.display>false</param.disable.display>
     <param.create.log>false</param.create.log>
     <param.log.file />
     <param.user.defined.mcr.options />
