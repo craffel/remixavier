@@ -17,14 +17,13 @@ import librosa
 
 # <codecell>
 
-def fix_offset( a, b, fs ):
+def fix_offset( a, b ):
     '''
     Given two signals with components in common, produces signals such that the offset is approximately zero
 
     Input:
         a - Some signal
         b - Some other signal
-        fs - The sampling rate of the signals
     Output:
         a_offset - Version of "a" with alignment fixed
         b_offset - Version of "b" with alignment fixed
@@ -40,6 +39,48 @@ def fix_offset( a, b, fs ):
     else:
         a = np.append( np.zeros( np.argmax( b_vs_a )*2 ), a )
     return a, b
+
+# <codecell>
+
+def fix_skew( a, b, hop, max_offset ):
+    '''
+    Given two signals a and b, estimate local offsets to fix timing error of b relative to a
+    
+    Input:
+        a - Some signal
+        b - Some other signal, should be the same size as a (that is, appropriately zero-padded)
+        hop - Number of samples between successive offset estimations
+        window - Maximum offset in samples for local each offset estimation
+    Output:
+        a - Signal a, unchanged
+        b_aligned - Signal b, with time corrections to align to a
+    '''
+    # Store the magnitude of local differences in this
+    diff_mags = np.zeros( 2*max_offset)
+    # Estimate first offset at the first hop location
+    current_offset = 2*max_offset + hop
+    # Allocate aligned version of b (to be filled in as we go)
+    b_aligned = np.zeros( b.shape[0] )
+    # Fill in the beginning
+    b_aligned[:current_offset] = b[:current_offset]
+    b_aligned[current_offset - hop:current_offset] *= np.arange( hop, 0, -1 )
+    # Window for fading in/out the corrected portions
+    fade_window = np.append(np.arange( hop ), np.arange( hop, 0, -1 ))
+    # Estimate offsets until we run out of samples
+    while current_offset + 2*max_offset + hop < b.shape[0]:
+        # Grab current frame in the reference window
+        current_range = r_[current_offset - max_offset:current_offset + max_offset]
+        current_frame = a[current_range]
+        for n, offset in enumerate( np.arange( -max_offset, max_offset ) ):
+            shifted_range = r_[current_offset + offset - max_offset:current_offset + offset + max_offset]
+            diff_mags[n] = np.sum( np.abs( current_frame - b[shifted_range] ) )
+        # Correct the offset
+        offset = np.argmin( diff_mags ) - max_offset
+        shifted_range = r_[current_offset + offset - hop:current_offset + offset + hop]
+        b_aligned[current_offset - hop:current_offset + hop] += fade_window*b[shifted_range]
+        current_offset += hop
+        print current_offset/float( b.shape[0] ), offset
+    return a, b_aligned
 
 # <codecell>
 
@@ -77,9 +118,11 @@ def separate( mix, source, fs ):
     '''
     
     # Fix any gross timing offset
-    mix, source = fix_offset( mix, source, fs )
+    mix, source = fix_offset( mix, source )
     # Make sure they are the same length again
     mix, source = pad( mix, source )
+    # Now, fix the skew (parameters set arbitrarily)
+    mix, source = fix_skew( mix, source, 4096, fs/2 )
     
     # Window and hop sizes
     N = 1024
@@ -159,9 +202,11 @@ def pad( a, b ):
 
 if __name__ == '__main__':
     # 2013-06-28 Dan Ellis dpwe@ee.columbia,edu + Colin Raffel craffel@gmail.com
-    f = 'kendrick-short'
-    mix, fs = librosa.load('../Data/{}-mix-aligned.wav'.format( f ), sr=None)
+    f = 'mc-paul'
+    mix, fs = librosa.load('../Data/{}-mix.wav'.format( f ), sr=None)
     source, fs = librosa.load('../Data/{}-instr.wav'.format( f ), sr=fs)
+    mix = mix[20*fs:40*fs]
+    source = source[20*fs:40*fs]
     sep, source_filtered = separate( mix, source, fs )
     librosa.output.write_wav( '../Data/{}-sep.wav'.format( f ), sep, fs )
     enhanced = wiener_enhance( sep, source_filtered, 0 )
