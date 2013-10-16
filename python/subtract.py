@@ -84,6 +84,35 @@ def fix_skew( a, b, hop, max_offset ):
 
 # <codecell>
 
+def get_local_offsets( a, b, hop, max_offset ):
+    '''
+    Given two signals a and b, estimate local offsets to fix timing error of b relative to a
+    
+    Input:
+        a - Some signal
+        b - Some other signal, should be the same size as a (that is, appropriately zero-padded)
+        hop - Number of samples between successive offset estimations
+        window - Maximum offset in samples for local each offset estimation
+    Output:
+        offset_locations - locations, in samples, of each local offset estimation
+        local_offsets - Estimates the best local offset for the corresponding sample in offset_locations
+    '''
+    # Compute the locations where we'll estimate offsets
+    offset_locations = np.arange( 2*max_offset, a.shape[0] - 2*max_offset, hop )
+    local_offsets = np.zeros( offset_locations.shape[0] )
+    # This will be filled in with values from a to compare against a range of b
+    compare_signal = np.zeros( 4*max_offset )
+    for n, i in enumerate( offset_locations ):
+        # Fill in values from a - half of this is always zero
+        compare_signal[:2*max_offset] = a[i - max_offset:i + max_offset]
+        # Compute correlation
+        correlation = scipy.signal.fftconvolve( compare_signal, b[i + 2*max_offset:i - 2*max_offset:-1], 'same' )[:2*max_offset + 1]
+        # Compute this local offset
+        local_offsets[n] = np.argmax( correlation ) - (max_offset + 1)
+    return offset_locations, local_offsets
+
+# <codecell>
+
 def best_filter_coefficients( M, R ):
     '''
     Get the best vector H such that |M - HoR| is minimized, where M, H, R are complex
