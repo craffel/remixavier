@@ -71,7 +71,7 @@ def fix_skew( a, b, hop, max_offset ):
         # Grab current frame in the reference window
         current_range = r_[current_offset - max_offset:current_offset + max_offset]
         current_frame = a[current_range]
-        for n, offset in enumerate( np.arange( -max_offset, max_offset ) ):
+        for n, offset in enumerate( xrange( -max_offset, max_offset ) ):
             shifted_range = r_[current_offset + offset - max_offset:current_offset + offset + max_offset]
             diff_mags[n] = np.sum( np.abs( current_frame - b[shifted_range] ) )
         # Correct the offset
@@ -79,7 +79,7 @@ def fix_skew( a, b, hop, max_offset ):
         shifted_range = r_[current_offset + offset - hop:current_offset + offset + hop]
         b_aligned[current_offset - hop:current_offset + hop] += fade_window*b[shifted_range]
         current_offset += hop
-        print current_offset/float( b.shape[0] ), offset
+        #print current_offset/float( b.shape[0] ), offset
     return a, b_aligned
 
 # <codecell>
@@ -121,8 +121,6 @@ def separate( mix, source, fs ):
     mix, source = fix_offset( mix, source )
     # Make sure they are the same length again
     mix, source = pad( mix, source )
-    # Now, fix the skew (parameters set arbitrarily)
-    mix, source = fix_skew( mix, source, 4096, fs/2 )
     
     # Window and hop sizes
     N = 1024
@@ -146,11 +144,30 @@ def separate( mix, source, fs ):
     source_spec_filtered = low_H*source_spec'''
     
     # Get back to time domain
-    source_filtered = librosa.istft( source_spec_filtered, n_fft=N, hop_length=R )
+    source = librosa.istft( source_spec_filtered, n_fft=N, hop_length=R )
     # Make the same size by adding zeros
-    mix, source_filtered = pad( mix, source_filtered )
+    mix, source = pad( mix, source )
+    
+    # Now, fix the skew (parameters set arbitrarily)
+    mix, source = fix_skew( mix, source, int(fs*.1), int(fs*.1) )
+    
+    # Compute spectrograms
+    mix_spec = librosa.stft( mix, n_fft=N, hop_length=R )
+    source_spec = librosa.stft( source, n_fft=N, hop_length=R )
+
+    # Compute the best filter
+    H = best_filter_coefficients( mix_spec, source_spec )
+    
+    # Apply it in the frequency domain (ignoring aliasing!  Yikes)
+    source_spec_filtered = H*source_spec
+
+    # Get back to time domain
+    source = librosa.istft( source_spec_filtered, n_fft=N, hop_length=R )
+    # Make the same size by adding zeros
+    mix, source = pad( mix, source )
+    
     # Return remainder
-    return mix - source_filtered, source_filtered
+    return mix - source, source
     
 
 # <codecell>
