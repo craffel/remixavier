@@ -42,45 +42,41 @@ def fix_offset( a, b ):
 
 # <codecell>
 
-def fix_skew( a, b, hop, max_offset ):
+def apply_offsets_cola( b, offset_locations, offsets ):
     '''
-    Given two signals a and b, estimate local offsets to fix timing error of b relative to a
+    Adjust a signal b according to local offset estimations
     
     Input:
-        a - Some signal
-        b - Some other signal, should be the same size as a (that is, appropriately zero-padded)
-        hop - Number of samples between successive offset estimations
-        window - Maximum offset in samples for local each offset estimation
+        b - Some signal
+        offset_locations - locations, in samples, of each local offset estimation
+        offsets - Estimates the best local offset for the corresponding sample in offset_locations
     Output:
-        a - Signal a, unchanged
-        b_aligned - Signal b, with time corrections to align to a
+        b_aligned - b with offsets applied
     '''
-    # Store the magnitude of local differences in this
-    diff_mags = np.zeros( 2*max_offset)
-    # Estimate first offset at the first hop location
-    current_offset = 2*max_offset + hop
-    # Allocate aligned version of b (to be filled in as we go)
+    assert offset_locations.shape[0] == offsets.shape[0]
+    # Allocate output signal
     b_aligned = np.zeros( b.shape[0] )
-    # Fill in the beginning
-    b_aligned[:current_offset] = b[:current_offset]
-    b_aligned[current_offset - hop:current_offset] *= np.arange( hop, 0, -1 )
-    # Window for fading in/out the corrected portions
-    fade_window = np.append(np.arange( hop ), np.arange( hop, 0, -1 ))
-    # Estimate offsets until we run out of samples
-    while current_offset + 2*max_offset + hop < b.shape[0]:
-        # Grab current frame in the reference window
-        current_range = r_[current_offset - max_offset:current_offset + max_offset]
-        current_frame = a[current_range]
-        for n, offset in enumerate( xrange( -max_offset, max_offset ) ):
-            shifted_range = r_[current_offset + offset - max_offset:current_offset + offset + max_offset]
-            diff_mags[n] = np.sum( np.abs( current_frame - b[shifted_range] ) )
-        # Correct the offset
-        offset = np.argmin( diff_mags ) - max_offset
-        shifted_range = r_[current_offset + offset - hop:current_offset + offset + hop]
-        b_aligned[current_offset - hop:current_offset + hop] += fade_window*b[shifted_range]
-        current_offset += hop
-        #print current_offset/float( b.shape[0] ), offset
-    return a, b_aligned
+    # If first offset is not at time 0, add in original signal until first offset - should apply offset here
+    if offset_locations[0] != 0:
+        b_aligned[:offset_locations[0]] += np.linspace(1, 0, offset_locations[0])*b[:offset_locations[0]]
+    # Include signal boundaries in offset locations
+    offset_locations = np.append( 0, np.append( offset_locations, b.shape[0] ) )
+    # Add in shifted windowed signal windows
+    for n in xrange( offsets.shape[0] ):
+        start = offset_locations[n]
+        middle = offset_locations[n + 1]
+        end = offset_locations[n + 2]
+        if start + offsets[n] < 0:
+            b_aligned[start:middle] += np.linspace(0, 1, middle - start)*np.append( np.zeros( -(start + offsets[n]) ), b[:middle + offsets[n]] )
+        else:
+            b_aligned[start:middle] += np.linspace(0, 1, middle - start)*b[start + offsets[n]:middle + offsets[n]]
+        if end + offsets[n] > b.shape[0]:
+            b_aligned[middle:end] += np.linspace(1, 0, end - middle)*np.append( b[middle + offsets[n]:], np.zeros( (end + offsets[n]) - b.shape[0] ) )
+        else:
+            b_aligned[middle:end] += np.linspace(1, 0, end - middle)*b[middle + offsets[n]:end + offsets[n]]
+    # Add in final samples - should apply offset here
+    b_aligned[offset_locations[-2]:] += np.linspace(0, 1, b_aligned.shape[0] - offset_locations[-2])*b[offset_locations[-2]:b_aligned.shape[0]]
+    return b_aligned
 
 # <codecell>
 
@@ -108,7 +104,7 @@ def get_local_offsets( a, b, hop, max_offset ):
         # Compute correlation
         correlation = scipy.signal.fftconvolve( compare_signal, b[i + 2*max_offset:i - 2*max_offset:-1], 'same' )[:2*max_offset + 1]
         # Compute this local offset
-        local_offsets[n] = np.argmax( correlation ) - (max_offset + 1)
+        local_offsets[n] = -(np.argmax( correlation ) - (max_offset + 1))
     return offset_locations, local_offsets
 
 # <codecell>
@@ -151,6 +147,10 @@ def separate( mix, source, fs ):
     # Make sure they are the same length again
     mix, source = pad( mix, source )
     
+    # Fix large-scale skew error
+    offset_locations, offsets = get_local_offsets( mix, source, int(.5*fs), int(fs) )
+    source = apply_offsets_cola( source, offset_locations, offsets )
+    
     # Window and hop sizes
     N = 1024
     R = N/4
@@ -165,21 +165,15 @@ def separate( mix, source, fs ):
     # Apply it in the frequency domain (ignoring aliasing!  Yikes)
     source_spec_filtered = H*source_spec
     
-    '''# Compute a highpass filter to get rid of the low end
-    low_h = scipy.signal.firwin(N + 1, 200.0/fs, pass_zero=False)[:-1]
-    low_H = np.fft.rfft( low_h ).reshape( -1, 1 )
-    # Apply filter
-    mix_spec = low_H*mix_spec
-    source_spec_filtered = low_H*source_spec'''
-    
     # Get back to time domain
     source = librosa.istft( source_spec_filtered, n_fft=N, hop_length=R )
     # Make the same size by adding zeros
     mix, source = pad( mix, source )
     
-    # Now, fix the skew (parameters set arbitrarily)
-    mix, source = fix_skew( mix, source, int(fs*.1), int(fs*.1) )
-    
+    # Fix small-scale skew error
+    offset_locations, offsets = get_local_offsets( mix, source, int(.1*fs), int(.2*fs) )
+    source = apply_offsets_cola( source, offset_locations, offsets)
+
     # Compute spectrograms
     mix_spec = librosa.stft( mix, n_fft=N, hop_length=R )
     source_spec = librosa.stft( source, n_fft=N, hop_length=R )
