@@ -42,6 +42,36 @@ def fix_offset( a, b ):
 
 # <codecell>
 
+def apply_offsets_resample( b, offset_locations, offsets ):
+    '''
+    Adjust a signal b according to local offset estimations using resampling
+    
+    Input:
+        b - Some signal
+        offset_locations - locations, in samples, of each local offset estimation
+        offsets - Estimates the best local offset for the corresponding sample in offset_locations
+    Output:
+        b_aligned - b with offsets applied
+    ''' 
+    assert offset_locations.shape[0] == offsets.shape[0]
+    # Allocate output signal
+    b_aligned = np.zeros( b.shape[0] + np.sum( offsets ) )
+    # Include signal boundaries in offset locations
+    offset_locations = np.append( 0, np.append( offset_locations, b.shape[0] ) )
+    # Set last stretch amount as whatever the 
+    offsets = np.append( offsets, offsets[-1] )
+    current = 0
+    for n, offset in enumerate( offsets ):
+        start = offset_locations[n]
+        end = offset_locations[n + 1]
+        ratio = 1 + offset/(end - start)
+        resampled = librosa.resample(b[start:end], 1, ratio)
+        b_aligned[current:current + resampled.shape[0]] = resampled
+        current += resampled.shape[0]
+    return b_aligned
+
+# <codecell>
+
 def apply_offsets_cola( b, offset_locations, offsets ):
     '''
     Adjust a signal b according to local offset estimations
