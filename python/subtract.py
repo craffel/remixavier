@@ -29,15 +29,15 @@ def fix_offset( a, b ):
         b_offset - Version of "b" with alignment fixed
     '''
     # Get correlation in both directions
-    a_vs_b = scipy.signal.fftconvolve( a[::2], b[:b.shape[0]/2][::-2], 'valid' )
-    b_vs_a = scipy.signal.fftconvolve( b[::2], a[:a.shape[0]/2][::-2], 'valid' )
+    a_vs_b = scipy.signal.fftconvolve( a, b[:b.shape[0]/2][::-1], 'valid' )
+    b_vs_a = scipy.signal.fftconvolve( b, a[:a.shape[0]/2][::-1], 'valid' )
     # If the best peak was correlating mix vs clean...
     if a_vs_b.max() > b_vs_a.max():
         # Shift mix by adding zeros to the beginning of source
-        b = np.append( np.zeros( np.argmax( a_vs_b )*2 ), b )
+        b = np.append( np.zeros( np.argmax( a_vs_b ) ), b )
     # Or vice versa
     else:
-        a = np.append( np.zeros( np.argmax( b_vs_a )*2 ), a )
+        a = np.append( np.zeros( np.argmax( b_vs_a ) ), a )
     return a, b
 
 # <codecell>
