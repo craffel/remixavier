@@ -74,7 +74,7 @@ def apply_offsets_resample( b, offset_locations, offsets ):
 
 def apply_offsets_cola( b, offset_locations, offsets ):
     '''
-    Adjust a signal b according to local offset estimations
+    Adjust a signal b according to local offset estimations using COLA
     
     Input:
         b - Some signal
@@ -158,7 +158,26 @@ def best_filter_coefficients( M, R ):
 
 # <codecell>
 
-def separate( mix, source, fs ):
+def remove_outliers( x ):
+    '''
+    Replaces any points in the vector x which lie outside of one std dev of the mean
+    
+    Input:
+        x - Input vector to clean
+    Output:
+        x - Cleaned version of x
+    '''
+    lower_limit = np.mean( x ) - np.std( x )
+    upper_limit = np.mean( x ) + np.std( x )
+    for n in xrange( len(x) ):
+        if n == 0: continue
+        if x[n] < lower_limit or x[n] > upper_limit:
+            x[n] = x[n - 1]
+    return x
+
+# <codecell>
+
+def separate( mix, source, fs, n_iter=2, n_fft=2**13 ):
     '''
     Given a mixture signal and a source signal _which are NOT skewed_, 
     estimate the best filter and remove the source signal.
@@ -167,61 +186,45 @@ def separate( mix, source, fs ):
         mix - signal mixture, size N
         source - source signal, size N
         fs - sampling rate
+        n_iter - Number of iterations to run
+        n_fft - FFT size
     Output:
         remainder - the remaining signal after removing source from mix
         source_filtered - the source, filtered by the channel estimation
     '''
-    
+
     # Fix any gross timing offset
     mix, source = fix_offset( mix, source )
+    # Set hop size for STFTs
+    hop = n_fft/4
     # Make sure they are the same length again
     mix, source = pad( mix, source )
-    
-    # Fix large-scale skew error
-    offset_locations, offsets = get_local_offsets( mix, source, int(.5*fs), int(fs) )
-    source = apply_offsets_cola( source, offset_locations, offsets )
-    
-    # Window and hop sizes
-    N = 1024
-    R = N/4
-    
-    # Compute spectrograms
-    mix_spec = librosa.stft( mix, n_fft=N, hop_length=R )
-    source_spec = librosa.stft( source, n_fft=N, hop_length=R )
-    
-    # Compute the best filter
-    H = best_filter_coefficients( mix_spec, source_spec )
-    
-    # Apply it in the frequency domain (ignoring aliasing!  Yikes)
-    source_spec_filtered = H*source_spec
-    
-    # Get back to time domain
-    source = librosa.istft( source_spec_filtered, n_fft=N, hop_length=R )
-    # Make the same size by adding zeros
-    mix, source = pad( mix, source )
-    
-    # Fix small-scale skew error
-    offset_locations, offsets = get_local_offsets( mix, source, int(.1*fs), int(.2*fs) )
-    source = apply_offsets_cola( source, offset_locations, offsets)
+    for n in xrange(n_iter):
+        # Fix large-scale skew error
+        offset_scale = int(2*fs/(5.0*n + 1))
+        offset_locations, offsets = get_local_offsets( mix, source, offset_scale, 2*offset_scale )
+        # Remove any big jumps in the offset list
+        offsets = remove_outliers( offsets )
+        source = apply_offsets_cola( source, offset_locations, offsets )
 
-    # Compute spectrograms
-    mix_spec = librosa.stft( mix, n_fft=N, hop_length=R )
-    source_spec = librosa.stft( source, n_fft=N, hop_length=R )
+        # Make sure they are the same length again
+        mix, source = pad( mix, source )
 
-    # Compute the best filter
-    H = best_filter_coefficients( mix_spec, source_spec )
-    
-    # Apply it in the frequency domain (ignoring aliasing!  Yikes)
-    source_spec_filtered = H*source_spec
-
-    # Get back to time domain
-    source = librosa.istft( source_spec_filtered, n_fft=N, hop_length=R )
-    # Make the same size by adding zeros
-    mix, source = pad( mix, source )
+        # Compute spectrograms
+        mix_spec = librosa.stft( mix, n_fft=n_fft, hop_length=hop )
+        source_spec = librosa.stft( source, n_fft=n_fft, hop_length=hop )
+        # Compute the best filter
+        H = best_filter_coefficients( mix_spec, source_spec )
+        # Apply it in the frequency domain (ignoring aliasing!  Yikes)
+        source_spec_filtered = H*source_spec
+        
+        # Get back to time domain
+        source = librosa.istft( source_spec_filtered, n_fft=n_fft, hop_length=hop )
+        # Make the same size by adding zeros
+        mix, source = pad( mix, source )
     
     # Return remainder
     return mix - source, source
-    
 
 # <codecell>
 
@@ -272,11 +275,9 @@ def pad( a, b ):
 
 if __name__ == '__main__':
     # 2013-06-28 Dan Ellis dpwe@ee.columbia,edu + Colin Raffel craffel@gmail.com
-    f = 'mc-paul'
+    f = 'wassup'
     mix, fs = librosa.load('../Data/{}-mix.wav'.format( f ), sr=None)
     source, fs = librosa.load('../Data/{}-instr.wav'.format( f ), sr=fs)
-    mix = mix[20*fs:40*fs]
-    source = source[20*fs:40*fs]
     sep, source_filtered = separate( mix, source, fs )
     librosa.output.write_wav( '../Data/{}-sep.wav'.format( f ), sep, fs )
     enhanced = wiener_enhance( sep, source_filtered, 0 )
