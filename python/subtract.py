@@ -118,7 +118,7 @@ def get_local_offsets( a, b, hop, max_offset ):
         a - Some signal
         b - Some other signal, should be the same size as a (that is, appropriately zero-padded)
         hop - Number of samples between successive offset estimations
-        window - Maximum offset in samples for local each offset estimation
+        max_offset - Maximum offset in samples for local each offset estimation
     Output:
         offset_locations - locations, in samples, of each local offset estimation
         local_offsets - Estimates the best local offset for the corresponding sample in offset_locations
@@ -177,10 +177,52 @@ def remove_outliers( x ):
 
 # <codecell>
 
+def iteration( mix, source, hop, max_offset, n_fft=2**14 ):
+    '''
+    Perform one interation of alignment and filter estimation
+    
+    Input:
+        mix - signal mixture
+        source - source signal
+        hop - Number of samples between successive offset estimations
+        max_offset - Maximum offset in samples for local each offset estimation
+        n_fft - FFT size for filter estimation
+    Output:
+        mix - Signal mixture, modified only by zero padding
+        source - Source signal
+    '''
+    # Estimate offset locations every "hop" samples
+    offset_locations, offsets = get_local_offsets( mix, source, hop, max_offset )
+    # Remove any big jumps in the offset list
+    offsets = remove_outliers( offsets )
+    # Adjust source according to these offsets
+    source = apply_offsets_cola( source, offset_locations, offsets )
+
+    # Make sure they are the same length again
+    mix, source = pad( mix, source )
+
+    # Set window size and hop size for STFTs
+    n_win = n_fft/2
+    hop = n_win/4
+    # Compute spectrograms
+    mix_spec = librosa.stft( mix, n_fft=n_fft, hann_w=n_win, hop_length=hop )
+    source_spec = librosa.stft( source, n_fft=n_fft, hann_w=n_win, hop_length=hop )
+    # Compute the best filter
+    H = best_filter_coefficients( mix_spec, source_spec )
+    # Apply it in the frequency domain (ignoring aliasing!  Yikes)
+    source_spec_filtered = H*source_spec
+    
+    # Get back to time domain
+    source = librosa.istft( source_spec_filtered, n_fft=n_fft, hann_w=n_win, hop_length=hop )
+    # Make the same size by adding zeros
+    mix, source = pad( mix, source )
+    return mix, source
+
+# <codecell>
+
 def separate( mix, source, fs, n_iter=2, n_fft=2**13 ):
     '''
-    Given a mixture signal and a source signal _which are NOT skewed_, 
-    estimate the best filter and remove the source signal.
+    Given a mixture signal and a source signal, iteratively align them and estimate the best filter and remove the source signal.
     
     Input:
         mix - signal mixture, size N
@@ -195,34 +237,14 @@ def separate( mix, source, fs, n_iter=2, n_fft=2**13 ):
 
     # Fix any gross timing offset
     mix, source = fix_offset( mix, source )
-    # Set hop size for STFTs
-    hop = n_fft/4
     # Make sure they are the same length again
     mix, source = pad( mix, source )
     for n in xrange(n_iter):
-        # Fix large-scale skew error
-        offset_scale = int(2*fs/(5.0*n + 1))
-        offset_locations, offsets = get_local_offsets( mix, source, offset_scale, 2*offset_scale )
-        # Remove any big jumps in the offset list
-        offsets = remove_outliers( offsets )
-        source = apply_offsets_cola( source, offset_locations, offsets )
-
-        # Make sure they are the same length again
-        mix, source = pad( mix, source )
-
-        # Compute spectrograms
-        mix_spec = librosa.stft( mix, n_fft=n_fft, hop_length=hop )
-        source_spec = librosa.stft( source, n_fft=n_fft, hop_length=hop )
-        # Compute the best filter
-        H = best_filter_coefficients( mix_spec, source_spec )
-        # Apply it in the frequency domain (ignoring aliasing!  Yikes)
-        source_spec_filtered = H*source_spec
-        
-        # Get back to time domain
-        source = librosa.istft( source_spec_filtered, n_fft=n_fft, hop_length=hop )
-        # Make the same size by adding zeros
-        mix, source = pad( mix, source )
-    
+        # Parameters for local offset estimation
+        hop = int(2*fs/(5.0*n + 1))
+        max_offset = int(4*fs/(2.0*n + 1))
+        # Perform one iteration
+        mix, source = iteration(mix, source, hop, max_offset, n_fft)
     # Return remainder
     return mix - source, source
 
@@ -278,8 +300,9 @@ if __name__ == '__main__':
     f = 'wassup'
     mix, fs = librosa.load('../Data/{}-mix.wav'.format( f ), sr=None)
     source, fs = librosa.load('../Data/{}-instr.wav'.format( f ), sr=fs)
-    sep, source_filtered = separate( mix, source, fs )
+    sep, source_filtered = separate( mix, source, fs, n_iter=2 )
     librosa.output.write_wav( '../Data/{}-sep.wav'.format( f ), sep, fs )
+    librosa.output.write_wav( '../Data/{}-source-filtered.wav'.format( f ), source_filtered, fs )
     enhanced = wiener_enhance( sep, source_filtered, 0 )
     librosa.output.write_wav( '../Data/{}-sep-wiener.wav'.format( f ), enhanced, fs )
 
