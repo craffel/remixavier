@@ -64,7 +64,7 @@ def apply_offsets_resample( b, offset_locations, offsets ):
     for n, offset in enumerate( offsets ):
         start = offset_locations[n]
         end = offset_locations[n + 1]
-        ratio = 1 + offset/(end - start)
+        ratio = 1 + (offset + start - current)/(end - start)
         resampled = librosa.resample(b[start:end], 1, ratio)
         b_aligned[current:current + resampled.shape[0]] = resampled
         current += resampled.shape[0]
@@ -177,7 +177,7 @@ def remove_outliers( x ):
 
 # <codecell>
 
-def iteration( mix, source, hop, max_offset, n_fft=2**14 ):
+def iteration( mix, source, hop, max_offset, n_fft=2**13 ):
     '''
     Perform one interation of alignment and filter estimation
     
