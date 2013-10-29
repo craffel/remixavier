@@ -55,19 +55,20 @@ def apply_offsets_resample( b, offset_locations, offsets ):
     ''' 
     assert offset_locations.shape[0] == offsets.shape[0]
     # Allocate output signal
-    b_aligned = np.zeros( b.shape[0] + np.sum( offsets ) )
+    b_aligned = np.zeros( b.shape[0] + np.max( offsets ) )
     # Include signal boundaries in offset locations
-    offset_locations = np.append( 0, np.append( offset_locations, b.shape[0] ) )
-    # Set last stretch amount as whatever the 
+    offset_locations = np.append( 0, np.append( offset_locations, b.shape[0]-100 ) )
+    # Set last offset to whatever the second to last one was
     offsets = np.append( offsets, offsets[-1] )
     current = 0
     for n, offset in enumerate( offsets ):
         start = offset_locations[n]
         end = offset_locations[n + 1]
-        ratio = 1 + (offset + start - current)/(end - start)
-        resampled = librosa.resample(b[start:end], 1, ratio)
-        b_aligned[current:current + resampled.shape[0]] = resampled
-        current += resampled.shape[0]
+        ratio = 1 + (-offset + start - current)/(end - start)
+        resampled = librosa.resample(b[start:end + 100], 1, ratio)
+        length = end - current - offset
+        b_aligned[current:current + length] = resampled[:length]
+        current += length
     return b_aligned
 
 # <codecell>
@@ -128,14 +129,15 @@ def get_local_offsets( a, b, hop, max_offset ):
     local_offsets = np.zeros( offset_locations.shape[0] )
     # This will be filled in with values from a to compare against a range of b
     compare_signal = np.zeros( 4*max_offset )
+    correlations = np.zeros( (offset_locations.shape[0], 2*max_offset + 1) )
     for n, i in enumerate( offset_locations ):
         # Fill in values from a - half of this is always zero
         compare_signal[:2*max_offset] = a[i - max_offset:i + max_offset]
         # Compute correlation
-        correlation = scipy.signal.fftconvolve( compare_signal, b[i + 2*max_offset:i - 2*max_offset:-1], 'same' )[:2*max_offset + 1]
+        correlations[n] = scipy.signal.fftconvolve( compare_signal, b[i + 2*max_offset:i - 2*max_offset:-1], 'same' )[:2*max_offset + 1]
         # Compute this local offset
-        local_offsets[n] = -(np.argmax( correlation ) - (max_offset + 1))
-    return offset_locations, local_offsets
+        local_offsets[n] = -(np.argmax( np.abs( correlations[n] ) ) - (max_offset + 1))
+    return offset_locations, local_offsets, correlations
 
 # <codecell>
 
@@ -192,12 +194,12 @@ def iteration( mix, source, hop, max_offset, n_fft=2**13 ):
         source - Source signal
     '''
     # Estimate offset locations every "hop" samples
-    offset_locations, offsets = get_local_offsets( mix, source, hop, max_offset )
+    offset_locations, offsets, _ = get_local_offsets( mix, source, hop, max_offset )
     # Remove any big jumps in the offset list
     offsets = remove_outliers( offsets )
     # Adjust source according to these offsets
     source = apply_offsets_cola( source, offset_locations, offsets )
-
+    
     # Make sure they are the same length again
     mix, source = pad( mix, source )
 
@@ -297,12 +299,12 @@ def pad( a, b ):
 
 if __name__ == '__main__':
     # 2013-06-28 Dan Ellis dpwe@ee.columbia,edu + Colin Raffel craffel@gmail.com
-    f = 'wassup'
+    f = 'mc-paul'
     mix, fs = librosa.load('../Data/{}-mix.wav'.format( f ), sr=None)
     source, fs = librosa.load('../Data/{}-instr.wav'.format( f ), sr=fs)
     sep, source_filtered = separate( mix, source, fs, n_iter=2 )
     librosa.output.write_wav( '../Data/{}-sep.wav'.format( f ), sep, fs )
     librosa.output.write_wav( '../Data/{}-source-filtered.wav'.format( f ), source_filtered, fs )
-    enhanced = wiener_enhance( sep, source_filtered, 0 )
+    enhanced = wiener_enhance( sep, source_filtered, 6 )
     librosa.output.write_wav( '../Data/{}-sep-wiener.wav'.format( f ), enhanced, fs )
 
