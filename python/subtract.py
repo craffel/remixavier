@@ -17,27 +17,51 @@ import librosa
 
 # <codecell>
 
-def fix_offset( a, b ):
+def get_best_fs_ratio( a, b, max_drift, steps, center=1 ):
+    '''
+    Given two signals with components in common, tries to estimate the clock drift and offset of b vs a
+    
+    Input:
+        a - Some signal
+        b - Some other signal
+        max_drift - max sample rate drift, in percent, e.g. .02 = 2% clock drift
+        steps - Number of sample rates to consider, between -max_drift and max_drift
+        center - Ratio to deviate from - default 1
+    Output:
+        fs_ratio - fs ratio to make b line up well with a
+    '''
+    # Sample rate ratios to try
+    fs_ratios = center + np.linspace( -max_drift, max_drift, steps + 1 )
+    # The max correlation value for each fs ratio
+    corr_max = np.zeros( fs_ratios.shape )
+    for n, ratio in enumerate( fs_ratios ):
+        # Resample b with this fs ratio
+        b_resampled = librosa.resample(b, 1, ratio)
+        # Compute the max correlation - assume offset < len(b)/10 for speed
+        a_slice = a[4*a.shape[0]/10:6*a.shape[0]/10]
+        b_slice = b_resampled[9*b.shape[0]/20:11*b.shape[0]/20]
+        corr_max[n] = np.max( scipy.signal.fftconvolve( a_slice, b_slice[::-1], 'valid' ) )
+    # Choose ratio with the highest correlation value
+    return fs_ratios[np.argmax(corr_max)]
+
+# <codecell>
+
+def fix_offset( a, b, max_offset ):
     '''
     Given two signals with components in common, produces signals such that the offset is approximately zero
 
     Input:
         a - Some signal
         b - Some other signal
+        max_offset - The maximum offset to allow
     Output:
         a_offset - Version of "a" with alignment fixed
         b_offset - Version of "b" with alignment fixed
     '''
     # Get correlation in both directions
-    a_vs_b = scipy.signal.fftconvolve( a, b[:b.shape[0]/2][::-1], 'valid' )
-    b_vs_a = scipy.signal.fftconvolve( b, a[:a.shape[0]/2][::-1], 'valid' )
-    # If the best peak was correlating mix vs clean...
-    if a_vs_b.max() > b_vs_a.max():
-        # Shift mix by adding zeros to the beginning of source
-        b = np.append( np.zeros( np.argmax( a_vs_b ) ), b )
-    # Or vice versa
-    else:
-        a = np.append( np.zeros( np.argmax( b_vs_a ) ), a )
+    a_vs_b = scipy.signal.fftconvolve( a, b[max_offset:-max_offset], 'valid' )
+    # Shift by adding zeros to the beginning
+    b = np.append( np.zeros( np.argmax( a_vs_b ) ), b )
     return a, b
 
 # <codecell>
@@ -111,7 +135,7 @@ def apply_offsets_cola( b, offset_locations, offsets ):
 
 # <codecell>
 
-def get_local_offsets( a, b, hop, max_offset ):
+def get_local_offsets( a, b, hop, max_offset, window ):
     '''
     Given two signals a and b, estimate local offsets to fix timing error of b relative to a
     
@@ -119,22 +143,23 @@ def get_local_offsets( a, b, hop, max_offset ):
         a - Some signal
         b - Some other signal, should be the same size as a (that is, appropriately zero-padded)
         hop - Number of samples between successive offset estimations
-        max_offset - Maximum offset in samples for local each offset estimation
+        max_offset - Maximum offset in samples
+        window - Number of samples to include in correlation
     Output:
         offset_locations - locations, in samples, of each local offset estimation
         local_offsets - Estimates the best local offset for the corresponding sample in offset_locations
     '''
     # Compute the locations where we'll estimate offsets
-    offset_locations = np.arange( 2*max_offset, a.shape[0] - 2*max_offset, hop )
+    offset_locations = np.arange( window + max_offset, a.shape[0] - (window + max_offset), hop )
     local_offsets = np.zeros( offset_locations.shape[0] )
     # This will be filled in with values from a to compare against a range of b
-    compare_signal = np.zeros( 4*max_offset )
+    compare_signal = np.zeros( window + 2*max_offset )
     correlations = np.zeros( (offset_locations.shape[0], 2*max_offset + 1) )
     for n, i in enumerate( offset_locations ):
         # Fill in values from a - half of this is always zero
-        compare_signal[:2*max_offset] = a[i - max_offset:i + max_offset]
+        compare_signal[:window] = a[i - window/2:i + window/2]
         # Compute correlation
-        correlations[n] = scipy.signal.fftconvolve( compare_signal, b[i + 2*max_offset:i - 2*max_offset:-1], 'same' )[:2*max_offset + 1]
+        correlations[n] = scipy.signal.fftconvolve( compare_signal, b[i + window/2 + max_offset:i - window/2 - max_offset:-1], 'same' )[window/2 - max_offset:-window/2 - max_offset + 1]
         # Compute this local offset
         local_offsets[n] = -(np.argmax( np.abs( correlations[n] ) ) - (max_offset + 1))
     return offset_locations, local_offsets, correlations
@@ -179,7 +204,7 @@ def remove_outliers( x ):
 
 # <codecell>
 
-def iteration( mix, source, hop, max_offset, n_fft=2**13 ):
+def iteration( mix, source, hop, max_offset, window, n_fft=2**13 ):
     '''
     Perform one interation of alignment and filter estimation
     
@@ -188,17 +213,18 @@ def iteration( mix, source, hop, max_offset, n_fft=2**13 ):
         source - source signal
         hop - Number of samples between successive offset estimations
         max_offset - Maximum offset in samples for local each offset estimation
+        window - Number of samples to include in correlation for offset estimation
         n_fft - FFT size for filter estimation
     Output:
         mix - Signal mixture, modified only by zero padding
         source - Source signal
     '''
     # Estimate offset locations every "hop" samples
-    offset_locations, offsets, _ = get_local_offsets( mix, source, hop, max_offset )
+    offset_locations, offsets, _ = get_local_offsets( mix, source, hop, max_offset, window )
     # Remove any big jumps in the offset list
     offsets = remove_outliers( offsets )
     # Adjust source according to these offsets
-    source = apply_offsets_cola( source, offset_locations, offsets )
+    source = apply_offsets_resample( source, offset_locations, offsets )
     
     # Make sure they are the same length again
     mix, source = pad( mix, source )
@@ -237,16 +263,26 @@ def separate( mix, source, fs, n_iter=2, n_fft=2**13 ):
         source_filtered - the source, filtered by the channel estimation
     '''
 
+    # Fix skew - downsample to 2kHz for speed!  Doesn't make a big difference performance-wise
+    mix_ds = librosa.resample( mix, fs, 2000 )
+    source_ds =  librosa.resample( source, fs, 2000 )
+    # Get coarse estimate of best sampling rate
+    fs_ratio = get_best_fs_ratio( mix_ds, source_ds, .02, 200 )
+    # Get fine estimate
+    fs_ratio = get_best_fs_ratio( mix_ds, source_ds, .0001, 200, fs_ratio )
+    source = librosa.resample( source, 1, fs_ratio )
     # Fix any gross timing offset
-    mix, source = fix_offset( mix, source )
-    # Make sure they are the same length again
+    mix, source = fix_offset( mix, source, max_offset=2*fs )
+    # Make sure they are the same length
     mix, source = pad( mix, source )
+    # Make a pre-filtered copy of 
     for n in xrange(n_iter):
         # Parameters for local offset estimation
         hop = int(2*fs/(5.0*n + 1))
-        max_offset = int(4*fs/(2.0*n + 1))
+        max_offset = fs/10
+        window = int(4*fs/(2.0*n + 1))
         # Perform one iteration
-        mix, source = iteration(mix, source, hop, max_offset, n_fft)
+        mix, source = iteration(mix, source, hop, max_offset, window, n_fft)
     # Return remainder
     return mix - source, source
 
