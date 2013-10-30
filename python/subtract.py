@@ -165,7 +165,7 @@ def get_local_offsets( a, b, hop, max_offset, window ):
         # Compute correlation
         correlations[n] = scipy.signal.fftconvolve( compare_signal, b[i + window/2 + max_offset:i - window/2 - max_offset:-1], 'same' )[window/2 - max_offset:-window/2 - max_offset + 1]
         # Compute this local offset
-        local_offsets[n] = -(np.argmax( np.abs( correlations[n] ) ) - (max_offset + 1))
+        local_offsets[n] = -(np.argmax( correlations[n] ) - (max_offset + 1))
     return offset_locations, local_offsets, correlations
 
 # <codecell>
