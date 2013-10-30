@@ -233,7 +233,9 @@ def iteration( mix, source, hop, max_offset, window, n_fft=2**13 ):
     
     # Make sure they are the same length again
     mix, source = pad( mix, source )
-
+    # Save the aligned, unfiltered source
+    source_aligned = np.array( source )
+    
     # Set window size and hop size for STFTs
     n_win = n_fft/2
     hop = n_win/4
@@ -249,7 +251,7 @@ def iteration( mix, source, hop, max_offset, window, n_fft=2**13 ):
     source = librosa.istft( source_spec_filtered, n_fft=n_fft, hann_w=n_win, hop_length=hop )
     # Make the same size by adding zeros
     mix, source = pad( mix, source )
-    return mix, source
+    return mix, source, source_aligned
 
 # <codecell>
 
@@ -287,9 +289,9 @@ def separate( mix, source, fs, n_iter=2, n_fft=2**13 ):
         max_offset = fs/10
         window = int(4*fs/(2.0*n + 1))
         # Perform one iteration
-        mix, source = iteration(mix, source, hop, max_offset, window, n_fft)
+        mix, source, source_aligned = iteration(mix, source, hop, max_offset, window, n_fft)
     # Return remainder
-    return mix - source, source
+    return mix - source, source_aligned
 
 # <codecell>
 
@@ -343,9 +345,9 @@ if __name__ == '__main__':
     f = 'mc-paul'
     mix, fs = librosa.load('../Data/{}-mix.wav'.format( f ), sr=None)
     source, fs = librosa.load('../Data/{}-instr.wav'.format( f ), sr=fs)
-    sep, source_filtered = separate( mix, source, fs, n_iter=2 )
+    sep, source_aligned = separate( mix, source, fs, n_iter=2 )
     librosa.output.write_wav( '../Data/{}-sep.wav'.format( f ), sep, fs )
-    librosa.output.write_wav( '../Data/{}-source-filtered.wav'.format( f ), source_filtered, fs )
-    enhanced = wiener_enhance( sep, source_filtered, 6 )
+    librosa.output.write_wav( '../Data/{}-source-aligned.wav'.format( f ), source_filtered, fs )
+    enhanced = wiener_enhance( sep, source_alignd, 6 )
     librosa.output.write_wav( '../Data/{}-sep-wiener.wav'.format( f ), enhanced, fs )
 
