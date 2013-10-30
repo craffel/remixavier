@@ -59,9 +59,13 @@ def fix_offset( a, b, max_offset ):
         b_offset - Version of "b" with alignment fixed
     '''
     # Get correlation in both directions
-    a_vs_b = scipy.signal.fftconvolve( a, b[max_offset:-max_offset], 'valid' )
+    a_vs_b = scipy.signal.fftconvolve( a, b[-max_offset:max_offset:-1], 'valid' )
     # Shift by adding zeros to the beginning
-    b = np.append( np.zeros( np.argmax( a_vs_b ) ), b )
+    shift = max_offset - np.argmax( a_vs_b ) + 1
+    if shift > 0:
+        a = np.append( np.zeros( shift ), a )
+    else:
+        b = np.append( np.zeros( -shift ), b )
     return a, b
 
 # <codecell>
@@ -194,11 +198,11 @@ def remove_outliers( x ):
     Output:
         x - Cleaned version of x
     '''
-    lower_limit = np.mean( x ) - np.std( x )
-    upper_limit = np.mean( x ) + np.std( x )
+    median_filtered = scipy.signal.medfilt( x, 13 )
+    global_std = np.std( x )
     for n in xrange( len(x) ):
         if n == 0: continue
-        if x[n] < lower_limit or x[n] > upper_limit:
+        if x[n] < median_filtered[n] - global_std or x[n] > median_filtered[n] + global_std:
             x[n] = x[n - 1]
     return x
 
@@ -220,7 +224,8 @@ def iteration( mix, source, hop, max_offset, window, n_fft=2**13 ):
         source - Source signal
     '''
     # Estimate offset locations every "hop" samples
-    offset_locations, offsets, _ = get_local_offsets( mix, source, hop, max_offset, window )
+    offset_locations, offsets, correlations = get_local_offsets( mix, source, hop, max_offset, window )
+
     # Remove any big jumps in the offset list
     offsets = remove_outliers( offsets )
     # Adjust source according to these offsets
@@ -278,7 +283,7 @@ def separate( mix, source, fs, n_iter=2, n_fft=2**13 ):
     # Make a pre-filtered copy of 
     for n in xrange(n_iter):
         # Parameters for local offset estimation
-        hop = int(2*fs/(5.0*n + 1))
+        hop = int(fs/(5.0*n + 1))
         max_offset = fs/10
         window = int(4*fs/(2.0*n + 1))
         # Perform one iteration
