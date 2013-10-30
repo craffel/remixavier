@@ -82,10 +82,10 @@ def apply_offsets_resample( b, offset_locations, offsets ):
         b_aligned - b with offsets applied
     ''' 
     assert offset_locations.shape[0] == offsets.shape[0]
-    # Allocate output signal
-    b_aligned = np.zeros( b.shape[0] + np.max( offsets ) )
     # Include signal boundaries in offset locations
     offset_locations = np.append( 0, np.append( offset_locations, b.shape[0]-100 ) )
+    # Allocate output signal
+    b_aligned = np.zeros( np.sum( np.diff( offset_locations ) ) + np.max( np.abs( offsets ) ) )
     # Set last offset to whatever the second to last one was
     offsets = np.append( offsets, offsets[-1] )
     current = 0
