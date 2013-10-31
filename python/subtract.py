@@ -59,9 +59,9 @@ def fix_offset( a, b, max_offset ):
         b_offset - Version of "b" with alignment fixed
     '''
     # Get correlation in both directions
-    a_vs_b = scipy.signal.fftconvolve( a, b[-max_offset:max_offset:-1], 'valid' )
+    a_vs_b = scipy.signal.fftconvolve( a, b[-max_offset - 1:max_offset - 1:-1], 'same' )[a.shape[0]/2 - max_offset:a.shape[0]/2 + max_offset + 1]
     # Shift by adding zeros to the beginning
-    shift = max_offset - np.argmax( a_vs_b ) + 1
+    shift = max_offset - np.argmax( a_vs_b )
     if shift > 0:
         a = np.append( np.zeros( shift ), a )
     else:
@@ -246,7 +246,7 @@ def iteration( mix, source, hop, max_offset, window, n_fft=2**13 ):
     H = best_filter_coefficients( mix_spec, source_spec )
     # Apply it in the frequency domain (ignoring aliasing!  Yikes)
     source_spec_filtered = H*source_spec
-    
+
     # Get back to time domain
     source = librosa.istft( source_spec_filtered, n_fft=n_fft, hann_w=n_win, hop_length=hop )
     # Make the same size by adding zeros
@@ -279,7 +279,7 @@ def separate( mix, source, fs, n_iter=2, n_fft=2**13 ):
     fs_ratio = get_best_fs_ratio( mix_ds, source_ds, .0001, 200, fs_ratio )
     source = librosa.resample( source, 1, fs_ratio )
     # Fix any gross timing offset
-    mix, source = fix_offset( mix, source, max_offset=2*fs )
+    #mix, source = fix_offset( mix, source, max_offset=2*fs )
     # Make sure they are the same length
     mix, source = pad( mix, source )
     # Make a pre-filtered copy of 
@@ -345,9 +345,9 @@ if __name__ == '__main__':
     f = 'mc-paul'
     mix, fs = librosa.load('../Data/{}-mix.wav'.format( f ), sr=None)
     source, fs = librosa.load('../Data/{}-instr.wav'.format( f ), sr=fs)
-    sep, source_aligned = separate( mix, source, fs, n_iter=2 )
+    sep, source_aligned = separate( mix, source, fs, n_iter=1 )
     librosa.output.write_wav( '../Data/{}-sep.wav'.format( f ), sep, fs )
-    librosa.output.write_wav( '../Data/{}-source-aligned.wav'.format( f ), source_filtered, fs )
-    enhanced = wiener_enhance( sep, source_alignd, 6 )
+    librosa.output.write_wav( '../Data/{}-source-aligned.wav'.format( f ), source_aligned, fs )
+    enhanced = wiener_enhance( sep, source_aligned, 6 )
     librosa.output.write_wav( '../Data/{}-sep-wiener.wav'.format( f ), enhanced, fs )
 
