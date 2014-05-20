@@ -43,6 +43,9 @@ def deskew(dm, dr, sr=44100, doplot=0):
     xcorrpeakthresh = 0.2
     fitthresh = 2.0
     
+    dmm = np.diff( dmm )
+    drm = np.diff( drm )
+    
     # Find best global xcorr to nearest 1 ms
     n, _, _ = find_skew(dmm, drm, [], np.round(sr/1000))
     initialdelay = n/sr
@@ -75,6 +78,7 @@ def deskew(dm, dr, sr=44100, doplot=0):
         plt.figure( figsize=(12, 8) )
         plt.imshow( ZN, aspect='auto', interpolation='nearest', cmap=plt.cm.gray )
         plt.plot( zmaxpos, '.' )
+        plt.plot( ZN.shape[0]*zmax/zmax.max() )
         plt.axis( 'tight' )
         plt.show()
         
@@ -82,8 +86,8 @@ def deskew(dm, dr, sr=44100, doplot=0):
     tt = np.arange( zmaxpos.shape[0] )*xcorrhop/sr
     # Delete "small" peaks and outliers
     todelete = np.logical_or( zmax < xcorrpeakthresh*np.max(zmax), np.logical_or( 
-                              zmaxpos < zmaxpos.mean() - 2*zmaxpos.std(), 
-                              zmaxpos > zmaxpos.mean() + 2*zmaxpos.std() ) )
+                              zmaxpos < zmaxpos.mean() - .5*zmaxpos.std(), 
+                              zmaxpos > zmaxpos.mean() + .5*zmaxpos.std() ) )
     todelete = np.nonzero( todelete )
     zmaxpos = np.delete( zmaxpos, todelete )
     tt = np.delete( tt, todelete )
@@ -245,8 +249,9 @@ def find_skew(test, ref, search_range=np.array([]), resolution=16):
 # <codecell>
 
 if __name__=='__main__':
-    a, fs = librosa.load( '../Data/duffy-mix.wav', sr=None )
-    b, fs = librosa.load( '../Data/duffy-instr.wav', sr=None )
+    f = '3'
+    a, fs = librosa.load('../Dataset/Data/{}/M.wav'.format( f ), sr=None)
+    b, fs = librosa.load('../Dataset/Data/{}/C.wav'.format( f ), sr=fs)
     c = deskew( a, b, fs, doplot=1 )
-    librosa.output.write_wav( '../Data/duffy-mix-aligned.wav', c, fs )
+    librosa.output.write_wav( '../Data/{}-mix-aligned.wav'.format( f ), c, fs )
 
