@@ -42,6 +42,8 @@ mpl.rc('font',**{'size':24})
 # Get all TIMIT wav files
 timit_files = glob.glob( '../Dataset/TIMIT/*.wav' )
 output_dir = '../Dataset/TIMIT-concat/'
+if not os.path.exists(output_dir):
+    os.makedirs(output_dir)
 # Number of random, longer files to make
 n_new_files = 100
 # How many uttarances to include per file
