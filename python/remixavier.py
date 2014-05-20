@@ -14,7 +14,7 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 import numpy as np
 import librosa
-import subtract
+import estimate
 
 # <codecell>
 
@@ -33,28 +33,25 @@ class Remixavier( QThread ) :
         super(Remixavier, self).__init__()
         self.mix_file = None
         self.source_file = None
-        self.n_iter = None
         self.wiener_threshold = None
     
-    def loadNewValues( self, mix_file, source_file, n_iter, wiener_threshold ):
+    def loadNewValues( self, mix_file, source_file, wiener_threshold ):
         '''
         Load in a new parameter setting from the GUI
         
         Input:
             mix_file - path to mixure .wav file
             source_file - path to source .wav file
-            n_iter - number of iterations to run in subtraction algorithm
             wiener_threshold - threshold for wiener filtering, in dB
         '''
         self.mix_file = mix_file
         self.source_file = source_file
-        self.n_iter = n_iter
         self.wiener_threshold = wiener_threshold
     
     def run( self ):
         # Initialize signals
         self.percentDoneSignal.emit( 0 )
-        percent_scale = 1000.0/(4 + self.n_iter)
+        percent_scale = 1000.0/5
         self.doneSignal.emit( 0 )
         self.statusSignal.emit( "" )
         # Load in audio data
@@ -65,18 +62,16 @@ class Remixavier( QThread ) :
         source, self.fs = librosa.load( self.source_file, sr=self.fs )
         self.percentDoneSignal.emit( 2*percent_scale )
         # Fix any gross timing offset
-        self.statusSignal.emit( "Subtracting..." )
-        mix, source = subtract.fix_offset( mix, source )
-        # Make sure they are the same length again
-        mix, source = subtract.pad( mix, source )
+        self.statusSignal.emit( "Aligning..." )
+        mix, source = estimate.align( mix, source, self.fs )
         self.percentDoneSignal.emit( 3*percent_scale )
-        for n in xrange( self.n_iter ):
-            #self.statusSignal.emit( "Iteration" )#{} of {}".format( n, self.n_iter ) )
-            hop = int(2*fs/(5.0*n + 1))
-            max_offset = int(4*fs/(2.0*n + 1))
-            mix, source = subtract.iteration( mix, source, hop, max_offset )
-            self.percentDoneSignal.emit( (3 + n)*percent_scale )
-        self.subtracted = subtract.wiener_enhance( mix - source, source, self.wiener_threshold )
+        self.statusSignal.emit( "Subtracting..." )
+        source = estimate.reverse_channel(mix, source)
+        mix, source = estimate.pad(mix, source)
+        self.percentDoneSignal.emit( 4*percent_scale )
+        self.statusSignal.emit( "Enhancing..." )
+        self.subtracted = estimate.wiener_enhance( mix - source, source, self.wiener_threshold )
+        self.percentDoneSignal.emit( 5*percent_scale )
         self.doneSignal.emit( 1 )
 
 # <codecell>
@@ -133,7 +128,6 @@ class AppForm(QMainWindow):
         
         # Parameter sliders
         self.wiener_thresholdLabel, self.wiener_thresholdSlider = self.createSlider( "Wiener Threshold", -10, 10, 0, 1 )
-        self.n_iterLabel, self.n_iterSlider = self.createSlider( "Iterations", 1, 4, 2, 1 )
         
         # Update the slider labels with their default values
         self.updateLabels()
@@ -151,8 +145,6 @@ class AppForm(QMainWindow):
         parametersVBox = QVBoxLayout()
         parametersVBox.addWidget( self.wiener_thresholdLabel )
         parametersVBox.addWidget( self.wiener_thresholdSlider )
-        parametersVBox.addWidget( self.n_iterLabel )
-        parametersVBox.addWidget( self.n_iterSlider )
         
         # Box for status bar and open button
         statusHBox = QHBoxLayout()
@@ -174,7 +166,6 @@ class AppForm(QMainWindow):
     def updateLabels( self ):
         # Convert lengths to float (in seconds)
         self.wiener_thresholdLabel.setText( "Wiener Threshold: {}".format( self.wiener_thresholdSlider.value() ) )
-        self.n_iterLabel.setText( "Number of iterations: {}".format( self.n_iterSlider.value() ) )
 
     # Create menus
     def createMenu( self ):
@@ -226,7 +217,7 @@ class AppForm(QMainWindow):
                 self.output_file = str(QFileDialog.getSaveFileName(self, "Save file", ".", "Audio Files (*.mp3 *.wav)"))
                 if self.output_file is not '':
                     self.progressBar.reset()
-                    self.remixavierInstance.loadNewValues( mix_file, source_file, self.wiener_thresholdSlider.value(), self.n_iterSlider.value() )
+                    self.remixavierInstance.loadNewValues( mix_file, source_file, self.wiener_thresholdSlider.value() )
                     self.remixavierInstance.start()
                     self.startStopButton.setEnabled( 0 )
     
