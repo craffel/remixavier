@@ -112,3 +112,4 @@ docs/_build/
 
 # IPython notebook
 .ipynb_checkpoints
+*.ipynb
