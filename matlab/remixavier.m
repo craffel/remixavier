@@ -28,7 +28,9 @@ progname = ['*** remixavier v', num2str(VERSION),' of ', num2str(DATE)];
                 'mix_start', 0, 'start reading mix file from this point', ...
                 'part_start', 0, 'start reading part file from this point', ...
                 'dur', 0, 'limit processing to this duration', ...
-                'hpf_frq', 0, 'high-pass frequency break frequency', ...
+                'hpf_frq', 0, 'high-pass filter break frequency', ...
+                'hpf_order', 6, 'high-pass cheby1 filter order', ...
+                'hpf_ripple', 2, 'high-pass cheby1 filter pass band ripple', ...
                 'ir_dur', 0.015, 'total time extent of coupling filter', ...
                 'ir_pre', 0.005, 'pre-echo time in coupling filter', ...
                 't_win', 1, 'duration of filter estimation window in sec', ...
@@ -63,10 +65,8 @@ dmix = P.gain * dmix;
 
 if P.hpf_frq > 0
   % design filter
-  order = 8;
-  ripple = 2.0; % dB
   Wp = P.hpf_frq / (sr/2);
-  [b,a] = cheby1(order,ripple,Wp,'high');
+  [b,a] = cheby1(P.hpf_order, P.hpf_ripple, Wp, 'high');
   dmix = filter(b,a,dmix);
   dpart = filter(b,a,dpart);
 end
@@ -145,16 +145,19 @@ end
 if P.do_plot == 3
   tfft = 0.032;
   fftlen = 2^round(log(sr*tfft)/log(2));
+  hop_prop = 0.125;  % e.g. 0.125 = 1/8 win hop advance
+  olap = round((1-hop_prop)*fftlen);
   p1 = subplot(311);
-  specgram(sum(dmix,2), fftlen, sr);
+  specgram(sum(dmix,2), fftlen, sr, fftlen, olap);
   cax = max(caxis());
   title(['mix - ',P.mix], 'interpreter', 'none');
   p2 = subplot(312);
-  specgram(sum(targ,2), fftlen, sr);
+  specgram(sum(targ,2), fftlen, sr, fftlen, olap);
+  %specgram(sum(dpart,2), fftlen, sr, fftlen, olap);
   cax = max([cax, caxis()]);
-  title(['part - ',P.part], 'interpreter', 'none');
+  title(['equalized part - ',P.part], 'interpreter', 'none');
   p3 = subplot(313);
-  specgram(sum(resid,2), fftlen, sr);
+  specgram(sum(resid,2), fftlen, sr, fftlen, olap);
   cax = max([cax, caxis()]);
   title(['residual'], 'interpreter', 'none');
   subplot(311)
