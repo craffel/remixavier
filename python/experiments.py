@@ -18,6 +18,7 @@ import random
 import scipy.io
 import mir_eval
 import pickle
+import matplotlib.pyplot as plt
 
 # <codecell>
 
