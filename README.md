@@ -2,7 +2,11 @@
 
 This repository contains code for correcting timing and channel distortion across audio signals with content in common.
 In other words, it can take two related audio files, align them in time, and (approximately) correct for any difference in channel.
-The python script ``remixavier.py`` is a GUI app which faciliates the process of extracing sources from a mixed audio signal given the sources which should be removed.
+
+## Python code
+
+The Python code in this repository implements the techniques described in the paper "Estimating Timing and Channel Distortion Across Related Signals" (see "Reference" below).
+The script ``remixavier.py`` is a GUI app which faciliates the process of extracing sources from a mixed audio signal given the sources which should be removed.
 This setting often arises when a musician releases only an instrumental or a cappella mix of a song, but not both, and you want to either remove or isolate the vocals using the provided a cappella or instrumental mix (respectively).
 
 ### Reference
@@ -22,3 +26,11 @@ The python script ``experiments.py`` contains all of the code required to genera
 * [mir_eval](https://github.com/craffel/mir_eval)
 * [PyQt4](http://www.riverbankcomputing.co.uk/software/pyqt/download) (only required by ``remixavier.py``)
 * [matplotlib](http://matplotlib.org/) (only required by ``experiments.py``)
+
+## MATLAB code
+
+The MATLAB code in this repository serves the same function as the Python code, but the algorithm and methodology is different.  Full details of the technique implemented and its useage can be found [here](http://labrosa.ee.columbia.edu/~dpwe/resources/matlab/remixavier/).
+
+### Dependencies
+
+* [mp3readwrite](http://www.ee.columbia.edu/ln/rosa/matlab/mp3read.html)
